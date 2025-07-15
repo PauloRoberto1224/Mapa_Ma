@@ -72,20 +72,154 @@ function highlight(e){
   info.update(l.feature.properties);
 }
 
-function resetHighlight(e){
-  if (window.geojsonLayer && e && e.target) {
-    window.geojsonLayer.resetStyle(e.target);
+function resetHighlight(e) {
+  // Não remove o destaque se for o mesmo município que está atualmente selecionado
+  if (window.highlightedFeature && e && e.target === window.highlightedFeature) {
+    return;
   }
-  info.update();
+  
+  // Remove o estilo de destaque do município
+  if (window.geojsonLayer && e && e.target) {
+    // Verifica se o alvo é uma feature válida
+    if (e.target.feature) {
+      // Apenas reseta o estilo se não for o município atualmente selecionado
+      if (!window.highlightedFeature || e.target !== window.highlightedFeature) {
+        window.geojsonLayer.resetStyle(e.target);
+      }
+    }
+  }
+  
+  // Atualiza o painel de informações apenas se não houver um município selecionado
+  if (!window.highlightedFeature) {
+    info.update();
+  }
 }
 
-function zoomToFeature(e){
+function zoomToFeature(e) {
+  const feature = e.target.feature;
+  const nomeMunicipio = feature.properties.name;
+  
+  // Ajusta o zoom para o município
   map.fitBounds(e.target.getBounds());
-  showPoints(e.target.feature.properties.name);
+  
+  // Mostra os pontos do município
+  showPoints(nomeMunicipio);
+  
+  // Destaca o município na legenda
+  highlightMunicipioInLegend(nomeMunicipio);
+  
+  // Atualiza o painel de informações
+  info.update(feature.properties);
+  
+  // Adiciona um pequeno destaque visual ao clicar
+  if (window.highlightedFeature) {
+    window.highlightedFeature.setStyle({
+      weight: 2,
+      opacity: 0.7,
+      color: 'white',
+      dashArray: '3',
+      fillOpacity: 0.7
+    });
+  }
+  
+  // Salva a feature atualmente destacada
+  window.highlightedFeature = e.target;
+  
+  // Aplica o estilo de destaque
+  e.target.setStyle({
+    weight: 3,
+    color: '#ff0000',
+    dashArray: '',
+    fillOpacity: 0.7
+  });
+  
+  // Garante que o destaque está visível
+  if (!e.target.bringToFront) {
+    e.target.bringToFront();
+  } else {
+    e.target.bringToFront();
+  }
 }
 
-function onEachFeature(feature,layer){
-  layer.on({mouseover:highlight, mouseout:resetHighlight, click:zoomToFeature});
+// Função para destacar um município na legenda
+function highlightMunicipioInLegend(nomeMunicipio) {
+  if (!nomeMunicipio) {
+    console.warn('Nome do município não fornecido para highlightMunicipioInLegend');
+    return;
+  }
+  
+  console.log('Destacando município na legenda:', nomeMunicipio);
+  
+  // Normaliza o nome do município para busca
+  const nomeNormalizado = normalizeString(nomeMunicipio);
+  let itemEncontrado = null;
+  
+  // Primeiro, tenta encontrar uma correspondência exata
+  document.querySelectorAll('.municipio').forEach(el => {
+    const itemText = el.textContent.trim();
+    if (normalizeString(itemText) === nomeNormalizado) {
+      itemEncontrado = el;
+    }
+  });
+  
+  // Se não encontrou, tenta uma correspondência parcial
+  if (!itemEncontrado) {
+    console.warn('Tentando correspondência parcial para:', nomeMunicipio);
+    
+    for (const el of document.querySelectorAll('.municipio')) {
+      const itemText = el.textContent.trim();
+      const itemNormalizado = normalizeString(itemText);
+      
+      // Verifica se há uma correspondência parcial
+      if (itemNormalizado.includes(nomeNormalizado) || 
+          nomeNormalizado.includes(itemNormalizado)) {
+        console.log(`Correspondência parcial encontrada: '${itemText}' para '${nomeMunicipio}'`);
+        itemEncontrado = el;
+        break;
+      }
+    }
+  }
+  
+  // Se não encontrou de jeito nenhum, loga erro e sai
+  if (!itemEncontrado) {
+    console.warn('Nenhuma correspondência encontrada para o município:', nomeMunicipio);
+    return;
+  }
+  
+  // Remove a classe 'active' de todos os itens
+  document.querySelectorAll('.municipio').forEach(el => {
+    el.classList.remove('active');
+  });
+  
+  // Adiciona a classe 'active' ao item encontrado
+  itemEncontrado.classList.add('active');
+  
+  // Rola para o item
+  itemEncontrado.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  // Se estiver dentro de um painel recolhível, expande-o
+  const painel = itemEncontrado.closest('.mesorregiao-painel');
+  if (painel && !painel.classList.contains('active')) {
+    const botao = painel.querySelector('button');
+    if (botao) {
+      botao.click(); // Expande o painel
+      // Aguarda a animação de expansão e rola novamente para o item
+      setTimeout(() => {
+        itemEncontrado.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }
+}
+
+function onEachFeature(feature, layer) {
+  layer.on({
+    mouseover: highlight,
+    mouseout: resetHighlight,
+    click: function(e) {
+      zoomToFeature(e);
+      highlightMunicipioInLegend(feature.properties.name);
+    }
+  });
 }
 
 function showPoints(m){
@@ -275,40 +409,48 @@ function highlightMunicipio(nomeMunicipio) {
   console.log('Procurando município:', nomeMunicipio);
   console.log('Total de features carregadas:', window.geojsonData.features.length);
   
-  // Função para normalizar strings (remover acentos e converter para minúsculas)
-  const normalizeString = (str) => {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  };
-  
-  // Normaliza o nome do município para comparação
+  // Normaliza o nome do município para busca
   const nomeNormalizado = normalizeString(nomeMunicipio);
+  let feature = null;
   
-  // Encontra o recurso do município no GeoJSON com correspondência flexível
-  const feature = window.geojsonData.features.find(
-    f => normalizeString(f.properties.name) === nomeNormalizado
-  );
-  
-  // Log para debug
-  if (feature) {
-    console.log('Município encontrado:', feature.properties.name);
-  } else {
-    console.log('Tentando encontrar correspondência parcial para:', nomeMunicipio);
-    // Tenta encontrar por correspondência parcial
-    const partialMatch = window.geojsonData.features.find(
-      f => normalizeString(f.properties.name).includes(nomeNormalizado) ||
-           nomeNormalizado.includes(normalizeString(f.properties.name))
-    );
-    
-    if (partialMatch) {
-      console.log('Correspondência parcial encontrada:', partialMatch.properties.name);
-      return highlightMunicipio(partialMatch.properties.name); // Chama novamente com o nome correto
+  // Primeiro tenta encontrar uma correspondência exata
+  for (const f of window.geojsonData.features) {
+    if (normalizeString(f.properties.name) === nomeNormalizado) {
+      feature = f;
+      console.log('Correspondência exata encontrada:', f.properties.name);
+      break;
     }
   }
   
+  // Se não encontrou, tenta uma correspondência parcial
+  if (!feature) {
+    console.log('Tentando encontrar correspondência parcial para:', nomeMunicipio);
+    
+    // Tenta encontrar por correspondência parcial
+    for (const f of window.geojsonData.features) {
+      const featureName = f.properties.name;
+      const featureNameNormalized = normalizeString(featureName);
+      
+      if (featureNameNormalized.includes(nomeNormalizado) || 
+          nomeNormalizado.includes(featureNameNormalized)) {
+        console.log('Correspondência parcial encontrada:', featureName);
+        feature = f;
+        break;
+      }
+    }
+  }
+  
+  // Se não encontrou o município, exibe mensagem de erro e sai
   if (!feature) {
     console.error('Município não encontrado no GeoJSON:', nomeMunicipio);
     return;
   }
+  
+  // Atualiza o nome do município para o formato correto encontrado no GeoJSON
+  const nomeCorreto = feature.properties.name;
+  
+  // Destaca o município na legenda com o nome correto
+  highlightMunicipioInLegend(nomeCorreto);
   
   console.log('Município encontrado:', feature);
   
@@ -562,11 +704,48 @@ fetch('meso_colors.json')
     createLegend();
   });
 
+// Função para normalizar strings (remove acentos, hífens, converte para minúsculas e remove espaços extras)
+function normalizeString(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/-/g, ' ') // Substitui hífens por espaços
+    .replace(/\s+/g, ' ') // Remove múltiplos espaços
+    .trim() // Remove espaços no início e fim
+    .toLowerCase();
+}
+
 // Aplicar estilos no mapa de municípios
-function styleMeso(feature){
+function styleMeso(feature) {
   const nomeMunicipio = feature.properties.name || 'Desconhecido';
-  // Se não encontrar a mesorregião, assume que é do Sul Maranhense
-  const mesorregiao = municipioToMesorregiao[nomeMunicipio] || 'Sul Maranhense';
+  
+  // Normaliza o nome do município para busca
+  const nomeNormalizado = normalizeString(nomeMunicipio);
+  
+  // Tenta encontrar a mesorregião usando o nome normalizado
+  let mesorregiao = 'Sul Maranhense'; // Valor padrão
+  
+  // Primeiro tenta encontrar uma correspondência exata
+  for (const [municipio, regiao] of Object.entries(municipioToMesorregiao)) {
+    if (normalizeString(municipio) === nomeNormalizado) {
+      mesorregiao = regiao;
+      break;
+    }
+  }
+  
+  // Se não encontrou, tenta uma correspondência parcial
+  if (mesorregiao === 'Sul Maranhense') {
+    for (const [municipio, regiao] of Object.entries(municipioToMesorregiao)) {
+      const municipioNormalizado = normalizeString(municipio);
+      if (municipioNormalizado.includes(nomeNormalizado) || nomeNormalizado.includes(municipioNormalizado)) {
+        mesorregiao = regiao;
+        console.log(`Correspondência parcial encontrada: '${municipio}' para '${nomeMunicipio}'`);
+        break;
+      }
+    }
+  }
+  
   const color = getColorForMesorregiao(mesorregiao);
   
   console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao, 'Cor:', color);
