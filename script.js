@@ -39,7 +39,44 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution: ' OpenStreetMap'
 }).addTo(map);
 
+// Estilo para os marcadores
 var markersLayer = L.layerGroup().addTo(map);
+
+// Estilos para os marcadores
+const markerStyles = {
+  CRAS: { color: '#1f78b4', icon: 'fas fa-home' },  // Azul para CRAS
+  CREAS: { color: '#33a02c', icon: 'fas fa-shield-alt' },  // Verde para CREAS
+  SSAA: { color: '#ff7f00', icon: 'fas fa-utensils' },   // Laranja para SSAA
+  restaurante: { color: '#ff7f00', icon: 'fas fa-utensils' }   // Laranja para restaurante
+};
+
+// Função para criar marcador com estilo específico
+function createStyledMarker(lat, lng, type, name, municipio) {
+  const style = markerStyles[type] || markerStyles.CRAS;
+  const icon = L.divIcon({
+    className: `marker-icon ${style.color}-marker`,
+    html: `<i class="${style.icon}" style="color: ${style.color};"></i>`,
+    iconSize: [25, 25]
+  });
+  
+  return L.marker([lat, lng], { icon: icon })
+    .bindPopup(`<div class="popup-content">
+      <h3>${name}</h3>
+      <p><strong>Tipo:</strong> ${type}</p>
+      <p><strong>Município:</strong> ${municipio}</p>
+    </div>`, {
+      closeButton: false,
+      autoClose: false,
+      closeOnClick: false,
+      className: 'custom-popup'
+    })
+    .on('mouseover', function(e) {
+      this.openPopup();
+    })
+    .on('mouseout', function(e) {
+      this.closePopup();
+    });
+}
 
 // Controle de informações
 var info = L.control({position:'topright'});
@@ -67,6 +104,16 @@ function processarDadosMunicipios() {
       if (!municipiosData[m]) municipiosData[m] = {CRAS: 0, CREAS: 0, SSAA: 0, total: 0};
       municipiosData[m][d.Tipo]++;
       municipiosData[m].total++;
+      
+      // Adiciona o ponto ao mapa se tiver coordenadas válidas
+      if (d.Latitude && d.Longitude) {
+        const lat = parseFloat(d.Latitude);
+        const lng = parseFloat(d.Longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const marker = createStyledMarker(lat, lng, d.Tipo, d.Nome, m);
+          markersLayer.addLayer(marker);
+        }
+      }
     });
     console.log('Dados dos municípios processados com sucesso');
     addDebugMessage('Dados dos municípios processados');
