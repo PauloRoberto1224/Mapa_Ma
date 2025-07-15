@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Maranhão Interativo (com Legenda)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body, html { margin:0; height:100%; font-family: Arial, sans-serif; }
+    #map{width:75%; height:100%; float:left;}
+    #info{width:25%; height:60%; float:left; padding:10px; box-sizing:border-box; overflow:auto;}
+    #legend {width:25%; height:40%; float:left; padding:10px; box-sizing:border-box; overflow:auto; background:#f5f5f5; border-top:1px solid #ddd;}
+    #legend h3 { margin-top:0; color:#333; }
+    .legend-item { 
+      margin-bottom: 8px; 
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+    .legend-item:hover {
+      background: #f0f0f0;
+    }
+    .legend-color { 
+      display:inline-block; 
+      width:20px; 
+      height:20px; 
+      margin-right:8px; 
+      vertical-align:middle;
+      border:1px solid #999;
+      border-radius:3px;
+    }
+    .mesorregiao-title {
+      font-weight: bold;
+      color: #333;
+    }
+    .microrregioes {
+      margin-left: 15px;
+      margin-top: 5px;
+      border-left: 2px solid #ddd;
+      padding-left: 10px;
+    }
+    .microrregiao {
+      margin: 5px 0;
+      padding: 5px;
+      background: #f9f9f9;
+      border-radius: 3px;
+    }
+    .microrregiao-item {
+      font-weight: 500;
+      color: #555;
+    }
+    .municipios-list {
+      margin-top: 5px;
+      padding: 5px;
+      background: white;
+      border: 1px solid #eee;
+      border-radius: 3px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="info"><h2>Mapa do Maranhão</h2><p>Passe o mouse sobre um município</p></div>
+  <div id="legend">
+    <h3>Legenda</h3>
+    <div id="legend-content">Carregando legenda...</div>
+    <div id="debug-info" style="margin-top: 20px; font-size: 12px; color: #666;"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data.js"></script>
+
+  <script>
+    console.log('Script principal carregado');
+    
+    // Função para adicionar mensagem de debug na interface
+    function addDebugMessage(message) {
+      try {
+        console.log(message);
+        const debugDiv = document.getElementById('debug-info');
+        if (debugDiv) {
+          const p = document.createElement('p');
+          p.style.margin = '2px 0';
+          p.style.padding = '4px';
+          p.style.background = '#f8f8f8';
+          p.style.borderLeft = '3px solid #4CAF50';
+          p.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+          debugDiv.insertBefore(p, debugDiv.firstChild);
+          
+          // Mantém apenas as últimas 50 mensagens
+          while (debugDiv.children.length > 50) {
+            debugDiv.removeChild(debugDiv.lastChild);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao adicionar mensagem de debug:', e);
+      }
+    }
+    
+    addDebugMessage('Iniciando aplicação...');
+    var map = L.map('map').setView([-5, -45], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    var markersLayer = L.layerGroup().addTo(map);
+
+    var info = L.control({position:'topright'});
+    info.onAdd = function(map){ this._div = L.DomUtil.get('info'); return this._div; };
+    info.update = function(props){
+      this._div.innerHTML = '<h2>Dados do município</h2>'+(
+        props?`<b>${props.NM_MUN}</b><br>
+              CRAS: ${municipiosData[props.NM_MUN]?.CRAS||0}<br>
+              CREAS: ${municipiosData[props.NM_MUN]?.CREAS||0}<br>
+              SSAA: ${municipiosData[props.NM_MUN]?.SSAA||0}<br>
+              Total: ${municipiosData[props.NM_MUN]?.total||0}`
+        :'Passe o mouse sobre um município'
+      );
+    };
+    info.addTo(map);
+
+    var municipiosData = {};
+    function countByMunicipio(){
+      data.forEach(d=>{
+        var m = d.Municipio;
+        if(!municipiosData[m]) municipiosData[m]={CRAS:0,CREAS:0,SSAA:0,total:0};
+        municipiosData[m][d.Tipo]++;
+        municipiosData[m].total++;
+      });
+    }
+    countByMunicipio();
+
+    function highlight(e){
+      var l=e.target;
+      l.setStyle({weight:2,fillOpacity:0.8});
+      info.update(l.feature.properties);
+    }
+    function resetHighlight(e){
+      geojsonMunicipios.resetStyle(e.target);
+      info.update();
+    }
+    function zoomToFeature(e){
+      map.fitBounds(e.target.getBounds());
+      showPoints(e.target.feature.properties.NM_MUN);
+    }
+    function onEachFeature(feature,layer){
+      layer.on({mouseover:highlight, mouseout:resetHighlight, click:zoomToFeature});
+    }
+    function showPoints(m){
+      markersLayer.clearLayers();
+      data.filter(d=>d.Municipio===m).forEach(d=>{
+        L.marker([+d.Latitude, +d.Longitude])
+          .bindPopup(`<b>${d.Nome}</b><br>${d.Tipo}`)
+          .addTo(markersLayer);
+      });
+    }
+
+    var geojsonMunicipios;
+    var mesoColors;
+    // Removed duplicate declarations of municipioToMesorregiao and mesorregioes
+
+    // Estrutura de dados completa com mesorregiões e microrregiões
+    const dadosMesorregioes = {
+      'Norte Maranhense': {
+        'Microrregião Litoral Ocidental': ['Alcântara', 'Bacuri', 'Bacurituba', 'Bequimão', 'Cajapió', 'Cedral', 
+          'Central do Maranhão', 'Cururupu', 'Guimarães', 'Mirinzal', 'Porto Rico do Maranhão', 'Serrano do Maranhão'],
+        'Microrregião Aglomeração Urbana de São Luís': ['Paço do Lumiar', 'Raposa', 'São José de Ribamar', 'São Luís'],
+        'Microrregião Rosário': ['Axixá', 'Bacabeira', 'Cachoeira Grande', 'Icatu', 'Morros', 'Presidente Juscelino', 'Rosário', 'Santa Rita'],
+        'Microrregião Lençóis Maranhenses': ['Barreirinhas', 'Humberto de Campos', 'Paulino Neves', 'Primeira Cruz', 'Santo Amaro do Maranhão', 'Tutóia'],
+        'Microrregião Baixada Maranhense': ['Anajatuba', 'Arari', 'Bela Vista do Maranhão', 'Cajari', 'Igarapé do Meio', 
+          'Matinha', 'Monção', 'Olinda Nova do Maranhão', 'Palmeirândia', 'Pedro do Rosário', 'Penalva', 'Peri Mirim', 
+          'Pinheiro', 'Presidente Sarney', 'Santa Helena', 'São Bento', 'São João Batista', 'São Vicente Ferrer', 'Viana', 'Vitória do Mearim'],
+        'Microrregião Itapecuru Mirim': ['Cantanhede', 'Itapecuru‑Mirim', 'Matões do Norte', 'Miranda do Norte', 'Nina Rodrigues', 'Pirapemas', 'Presidente Vargas', 'Vargem Grande']
+      },
+      'Oeste Maranhense': {
+        'Microrregião Gurupi': ['Amapá do Maranhão', 'Boa Vista do Gurupi', 'Cândido Mendes', 'Carutapera', 'Centro do Guilherme', 
+          'Centro Novo do Maranhão', 'Godofredo Viana', 'Governador Nunes Freire', 'Junco do Maranhão', 
+          'Luís Domingues', 'Maracaçumé', 'Maranhãozinho', 'Turiaçu', 'Turilândia'],
+        'Microrregião Pindaré': ['Altamira do Maranhão', 'Alto Alegre do Pindaré', 'Araguanã', 'Bom Jardim', 'Bom Jesus das Selvas', 
+          'Brejo de Areia', 'Buriticupu', 'Governador Newton Bello', 'Lago da Pedra', 'Lagoa Grande do Maranhão', 
+          'Marajá do Sena', 'Nova Olinda do Maranhão', 'Paulo Ramos', 'Pindaré‑Mirim', 'Presidente Médici', 
+          'Santa Inês', 'Santa Luzia do Paruá', 'São João do Caru', 'Tufilândia', 'Vitorino Freire', 'Zé Doca'],
+        'Microrregião Imperatriz': ['Açailândia', 'Amarante do Maranhão', 'Buritirana', 'Cidelândia', 'Davinópolis', 'Governador Edison Lobão', 
+          'Imperatriz', 'Itinga do Maranhão', 'João Lisboa', 'Lajeado Novo', 'Montes Altos', 'Ribamar Fiquene', 
+          'São Francisco do Brejão', 'São Pedro da Água Branca', 'Senador La Rocque', 'Vila Nova dos Martírios']
+      },
+      'Centro Maranhense': {
+        'Microrregião Médio Mearim': ['Bacabal', 'Bernardo do Mearim', 'Bom Lugar', 'Conceição do Lago Açu', 'Esperantinópolis', 'Igarapé Grande', 'Lago do Junco', 
+          'Lago dos Rodrigues', 'Lago Verde', 'Lima Campos', "Olho d'Água das Cunhãs", 'Pedreiras', 'Pio XII', 
+          'Poção de Pedras', 'Santo Antônio dos Lopes', 'São Luís Gonzaga do Maranhão', 'São Mateus do Maranhão', 
+          'São Raimundo do Doca Bezerra', 'São Roberto', 'Satubinha', 'Trizidela do Vale'],
+        'Microrregião Alto Mearim e Grajaú': ['Arame', 'Barra do Corda', 'Fernando Falcão', 'Formosa da Serra Negra', 'Grajaú', 'Itaipava do Grajaú', 
+          'Jenipapo dos Vieiras', 'Joselândia', 'Santa Filomena do Maranhão', 'Sítio Novo', 'Tuntum'],
+        'Microrregião Presidente Dutra': ['Fortuna', 'Dom Pedro', 'Gonçalves Dias', 'Governador Archer', 'Governador Eugênio Barros', 
+          'Governador Luiz Rocha', 'Graça Aranha', 'Presidente Dutra', 'São Domingos do Maranhão', 
+          'São José dos Basílios', 'Senador Alexandre Costa']
+      },
+      'Leste Maranhense': {
+        'Microrregião Baixo Parnaíba Maranhense': ['Água Doce do Maranhão', 'Araioses', 'Magalhães de Almeida', 'Santa Quitéria do Maranhão', 
+          'Santana do Maranhão', 'São Bernardo'],
+        'Microrregião Chapadinha': ['Anapurus', 'Belágua', 'Brejo', 'Buriti', 'Chapadinha', 'Mata Roma', 'Milagres do Maranhão', 
+          'São Benedito do Rio Preto', 'Urbano Santos'],
+        'Microrregião Codó': ['Alto Alegre do Maranhão', 'Capinzal do Norte', 'Codó', 'Coroatá', 'Peritoró', 'Timbiras'],
+        'Microrregião Coelho Neto': ['Afonso Cunha', 'Aldeias Altas', 'Coelho Neto', 'Duque Bacelar'],
+        'Microrregião Caxias': ['Buriti Bravo', 'Caxias', 'Matões', 'Parnarama', 'São João do Soter', 'Timon'],
+        'Microrregião Chapadas do Alto Itapecuru': ['Barão de Grajaú', 'Colinas', 'Jatobá', 'Lagoa do Mato', 'Mirador', 'Nova Iorque', 'Paraibano', 
+          'Passagem Franca', 'Pastos Bons', 'São Francisco do Maranhão', 'São João dos Patos', 'Sucupira do Norte', 
+          'Sucupira do Riachão']
+      },
+      'Sul Maranhense': {
+        'Microrregião Gerais de Balsas': ['Alto Parnaíba', 'Balsas', 'Feira Nova do Maranhão', 'Riachão', 'São Félix de Balsas', 'São Raimundo das Mangabeiras', 'Tasso Fragoso'],
+        'Microrregião Chapadas das Mangabeiras': ['Benedito Leite', 'Fortaleza dos Nogueiras', 'Loreto', 'Nova Colinas', 'Sambaíba', 'São Domingos do Azeitão', 'São Félix de Balsas', 'São Raimundo das Mangabeiras'],
+        'Microrregião Porto Franco': ['Campestre do Maranhão', 'Carolina', 'Estreito', 'Porto Franco', 'São João do Paraíso', 'São Pedro dos Crentes']
+      }
+    };
+
+    // Cria uma versão simplificada para o mapeamento de municípios
+    const mesorregioesData = {};
+    const contagemPorMesorregiao = {};
+    const municipioToMesorregiao = {}; // Mapeia cada município para sua mesorregião
+    const mesorregioes = []; // Lista de todas as mesorregiões
+    
+    // Função para obter uma cor única para cada mesorregião
+    function getColorForMesorregiao(mesorregiao) {
+      // Mapeia cada mesorregião para uma cor específica
+      const colors = {
+        'Norte Maranhense': '#1f77b4',
+        'Oeste Maranhense': '#ff7f0e',
+        'Centro Maranhense': '#2ca02c',
+        'Leste Maranhense': '#d62728',
+        'Sul Maranhense': '#9467bd',
+        // Cores adicionais caso haja mais mesorregiões
+        'default': '#7f7f7f'
+      };
+      
+      // Retorna a cor correspondente à mesorregião ou a cor padrão
+      return mesorregiao && typeof mesorregiao === 'string' 
+        ? (colors[mesorregiao] || colors['default'])
+        : colors['default'];
+    }
+    
+    // Função para adicionar mensagens de debug na interface
+    function addDebugMessage(msg) {
+      try {
+        // Log no console
+        console.log('DEBUG:', msg);
+        
+        // Verifica se o elemento de debug existe e se a mensagem é válida
+        const debugEl = document.getElementById('debug-messages');
+        if (!debugEl || !msg) return;
+        
+        // Cria um novo elemento de mensagem
+        const msgEl = document.createElement('div');
+        
+        // Formata a mensagem com timestamp
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        const msgStr = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        
+        // Define o conteúdo da mensagem
+        msgEl.textContent = timeStr + ': ' + msgStr;
+        
+        // Adiciona a mensagem ao container de debug
+        debugEl.appendChild(msgEl);
+        
+        // Rola para a última mensagem
+        debugEl.scrollTop = debugEl.scrollHeight;
+      } catch (err) {
+        console.error('Erro em addDebugMessage:', err);
+      }
+    }
+    
+    // Função para processar os dados das mesorregiões
+    function processarDadosMesorregioes() {
+      console.log('Iniciando processamento dos dados das mesorregiões...');
+      try {
+        // Limpa estruturas de dados existentes
+        mesorregioes.length = 0;
+        Object.keys(mesorregioesData).forEach(key => delete mesorregioesData[key]);
+        Object.keys(contagemPorMesorregiao).forEach(key => delete contagemPorMesorregiao[key]);
+        Object.keys(municipioToMesorregiao).forEach(key => delete municipioToMesorregiao[key]);
+        
+        // Inicializa as estruturas de dados
+        Object.keys(dadosMesorregioes).forEach(mesorregiao => {
+          mesorregioesData[mesorregiao] = [];
+          contagemPorMesorregiao[mesorregiao] = 0;
+          if (!mesorregioes.includes(mesorregiao)) {
+            mesorregioes.push(mesorregiao);
+          }
+        });
+        
+        // Processa os dados das mesorregiões
+        Object.entries(dadosMesorregioes).forEach(([mesorregiao, microrregioes]) => {
+          if (typeof microrregioes === 'object' && microrregioes !== null) {
+            Object.values(microrregioes).forEach(municipios => {
+              if (Array.isArray(municipios)) {
+                // Adiciona à lista de municípios da mesorregião (garantindo que seja um array)
+                if (!Array.isArray(mesorregioesData[mesorregiao])) {
+                  mesorregioesData[mesorregiao] = [];
+                }
+                
+                // Adiciona cada município individualmente
+                municipios.forEach(municipio => {
+                  if (typeof municipio === 'string') {
+                    const municipioTrim = municipio.trim();
+                    if (!mesorregioesData[mesorregiao].includes(municipioTrim)) {
+                      mesorregioesData[mesorregiao].push(municipioTrim);
+                      municipioToMesorregiao[municipioTrim] = mesorregiao;
+                      contagemPorMesorregiao[mesorregiao] = (contagemPorMesorregiao[mesorregiao] || 0) + 1;
+                    }
+                  }
+                });
+              }
+            });
+          }
+        });
+        
+        console.log('Dados processados com sucesso');
+        return true;
+      } catch (error) {
+        console.error('Erro ao processar os dados:', error);
+        addDebugMessage('Erro ao processar os dados: ' + error.message);
+        return false;
+      }
+    }
+    
+    // Exibe a contagem de municípios por mesorregião
+    function exibirContagem() {
+      try {
+        const contagemDiv = document.createElement('div');
+        contagemDiv.style.marginTop = '10px';
+        contagemDiv.style.padding = '10px';
+        contagemDiv.style.background = '#f0f0f0';
+        contagemDiv.style.borderRadius = '4px';
+        
+        const titulo = document.createElement('h4');
+        titulo.textContent = 'Municípios por Mesorregião:';
+        titulo.style.marginTop = '0';
+        contagemDiv.appendChild(titulo);
+        
+        const lista = document.createElement('ul');
+        lista.style.margin = '5px 0 0 0';
+        lista.style.paddingLeft = '20px';
+        
+        // Adiciona cada mesorregião à lista
+        Object.entries(contagemPorMesorregiao).forEach(([mesorregiao, quantidade]) => {
+          console.log(`- ${mesorregiao}: ${quantidade} municípios`);
+          const item = document.createElement('li');
+          item.textContent = `${mesorregiao}: ${quantidade} municípios`;
+          lista.appendChild(item);
+        });
+        
+        // Adiciona o total
+        const total = Object.keys(municipioToMesorregiao).length;
+        console.log(`Total de municípios mapeados: ${total}`);
+        
+        const totalItem = document.createElement('li');
+        totalItem.style.marginTop = '5px';
+        totalItem.style.fontWeight = 'bold';
+        totalItem.textContent = `Total: ${total} municípios`;
+        lista.appendChild(totalItem);
+        
+        contagemDiv.appendChild(lista);
+        
+        // Adiciona ao debug-info
+        const debugInfo = document.getElementById('debug-info');
+        if (debugInfo) {
+          debugInfo.insertBefore(contagemDiv, debugInfo.firstChild);
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('Erro ao exibir contagem:', error);
+        addDebugMessage('Erro ao exibir contagem: ' + error.message);
+        return false;
+      }
+    }
+    
+    // Processa os dados e exibe a contagem
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('=== DOM totalmente carregado ===');
+      addDebugMessage('DOM totalmente carregado');
+      
+      try {
+        console.log('Iniciando processamento dos dados...');
+        addDebugMessage('Iniciando processamento dos dados...');
+        
+        if (processarDadosMesorregioes()) {
+          console.log('Dados processados com sucesso, exibindo contagem...');
+          addDebugMessage('Dados processados com sucesso');
+          exibirContagem();
+          
+          // Tenta criar a legenda após um pequeno atraso
+          setTimeout(() => {
+            console.log('Tentando criar a legenda...');
+            addDebugMessage('Criando legenda...');
+            try {
+              createLegend();
+              console.log('Legenda criada com sucesso!');
+              addDebugMessage('Legenda criada com sucesso!');
+            } catch (e) {
+              console.error('Erro ao criar legenda:', e);
+              addDebugMessage('Erro ao criar legenda: ' + e.message);
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Erro ao processar dados iniciais:', error);
+        addDebugMessage('Erro ao processar dados iniciais: ' + error.message);
+      }
+    });
+    
+    // Função para obter a cor da mesorregião
+    function getColorForMesorregiao(mesorregiao) {
+      // Cores fixas para cada mesorregião
+      const colors = {
+        'Norte Maranhense': '#1f78b4',
+        'Oeste Maranhense': '#33a02c',
+        'Centro Maranhense': '#ff7f00',
+        'Leste Maranhense': '#6a3d9a',
+        'Sul Maranhense': '#e31a1c'  // Vermelho para o Sul Maranhense
+      };
+      return colors[mesorregiao] || '#999999';
+    }
+
+    // Carrega os dados e monta a legenda
+    console.log('Iniciando carregamento do meso_colors.json...');
+    fetch('meso_colors.json')
+      .then(r => {
+        console.log('Resposta do fetch:', r.status);
+        if (!r.ok) {
+          throw new Error(`Erro ${r.status} ao carregar meso_colors.json`);
+        }
+        return r.json();
+      })
+      .then(meso => {
+        console.log('meso_colors carregado com sucesso');
+        mesoColors = meso.features;
+        console.log('Quantidade de features carregadas:', mesoColors ? mesoColors.length : 0);
+        createLegend();
+      })
+      .catch(error => {
+        console.error('Erro ao carregar meso_colors.json:', error);
+        // Mesmo com erro, tenta criar a legenda com os dados que já temos
+        createLegend();
+      });
+
+      // Aplicar estilos no mapa de municípios
+      function styleMeso(feature){
+        const nomeMunicipio = feature.properties.name || 'Desconhecido';
+        // Se não encontrar a mesorregião, assume que é do Sul Maranhense
+        const mesorregiao = municipioToMesorregiao[nomeMunicipio] || 'Sul Maranhense';
+        const color = getColorForMesorregiao(mesorregiao);
+        
+        console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao, 'Cor:', color);
+        
+        // Armazena a mesorregião nas propriedades do feature para uso posterior
+        feature.properties.mesorregiao = mesorregiao;
+        
+        return {
+          fillColor: color,
+          weight: 1,
+          opacity: 1,
+          color: '#555',
+          fillOpacity: 0.8,
+          dashArray: ''
+        };
+      }
+
+      // Primeiro carrega o GeoJSON dos municípios
+      fetch('municipios_ma.json')
+        .then(response => response.json())
+        .then(geojson => {
+          console.log('GeoJSON carregado com', geojson.features.length, 'elementos');
+          // Adiciona os municípios ao mapa
+          geojsonMunicipios = L.geoJSON(geojson, {
+            style: styleMeso,
+            onEachFeature: onEachFeature
+          }).addTo(map);
+          
+          // Ajusta a visualização para mostrar todos os municípios
+          map.fitBounds(geojsonMunicipios.getBounds());
+        })
+        .catch(error => console.error('Erro ao carregar o GeoJSON:', error));
+
+    // Estilo CSS para a legenda interativa
+    const style = document.createElement('style');
+    style.textContent = `
+      .legend-item {
+        margin-bottom: 5px;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 3px;
+      }
+      .legend-item:hover {
+        background-color: #f0f0f0;
+      }
+      .microrregiao {
+        margin-left: 20px;
+        margin-top: 5px;
+        display: none;
+      }
+      .microrregiao-item {
+        margin-left: 20px;
+        font-size: 0.9em;
+        color: #555;
+      }
+      .expanded {
+        font-weight: bold;
+      }
+      .municipios-list {
+        display: none;
+        margin-left: 20px;
+        font-size: 0.8em;
+        color: #666;
+        font-style: italic;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Monta a legenda HTML com as mesorregiões e microrregiões
+    function createLegend() {
+      console.log('=== Iniciando createLegend() ===');
+      addDebugMessage('Iniciando criação da legenda...');
+      
+      try {
+        const cont = document.getElementById('legend-content');
+        if (!cont) {
+          console.error('Elemento legend-content não encontrado!');
+          return;
+        }
+        
+        cont.innerHTML = '';
+      
+        console.log('Dados das mesorregiões:', dadosMesorregioes);
+      
+        // Para cada mesorregião
+        console.log('Processando mesorregiões...');
+        Object.entries(dadosMesorregioes).forEach(([mesorregiao, microrregioes]) => {
+          console.log('Processando mesorregião:', mesorregiao, microrregioes);
+          // Calcula o total de municípios
+          let totalMunicipios = 0;
+          Object.values(microrregioes).forEach(municipios => {
+            totalMunicipios += municipios.length;
+          });
+        
+          // Cria o item da mesorregião
+          const mesoDiv = document.createElement('div');
+          mesoDiv.className = 'legend-item';
+          mesoDiv.innerHTML = `
+            <span class="legend-color" style="background:${getColorForMesorregiao(mesorregiao)}"></span>
+            <span class="mesorregiao-title">${mesorregiao} (${totalMunicipios} municípios)</span>
+          `;
+        
+          // Cria o container para as microrregiões
+          const microrregioesDiv = document.createElement('div');
+          microrregioesDiv.className = 'microrregioes';
+          microrregioesDiv.style.display = 'none'; // Inicia escondido
+          
+          // Adiciona as microrregiões
+          Object.entries(microrregioes).forEach(([nomeMicrorregiao, municipios]) => {
+            if (municipios && municipios.length > 0) {  // Só adiciona se tiver municípios
+              const microDiv = document.createElement('div');
+              microDiv.className = 'microrregiao';
+              microDiv.innerHTML = `
+                <div class="microrregiao-item">
+                  ${nomeMicrorregiao} (${municipios.length} municípios)
+                </div>
+                <div class="municipios-list">
+                  ${Array.isArray(municipios) ? municipios.join(', ') : ''}
+                </div>
+              `;
+              microrregioesDiv.appendChild(microDiv);
+            }
+          });
+        
+          // Adiciona o evento de clique para expandir/recolher
+          console.log('Adicionando evento de clique para:', mesorregiao);
+          mesoDiv.addEventListener('click', (e) => {
+            console.log('Clicou em:', mesorregiao);
+            // Não fecha se clicar em um link ou em um elemento filho que não seja a mesorregião
+            if (e.target.tagName === 'A' || e.target.closest('a')) {
+              console.log('Clicou em um link, ignorando...');
+              return;
+            }
+            
+            console.log('Alternando exibição para:', mesorregiao);
+            const isExpanded = mesoDiv.classList.toggle('expanded');
+            const microrregioes = mesoDiv.nextElementSibling;
+            console.log('Elemento de microrregiões encontrado?', !!microrregioes);
+            microrregioes.style.display = isExpanded ? 'block' : 'none';
+            
+            // Atualiza o título para mostrar/ocultar o contador
+            const title = mesoDiv.querySelector('.mesorregiao-title');
+            if (title) {
+              title.textContent = isExpanded 
+                ? `${mesorregiao}`
+                : `${mesorregiao} (${totalMunicipios} municípios)`;
+            }
+          });
+        
+          // Adiciona evento de clique nas microrregiões para mostrar/ocultar municípios
+          microrregioesDiv.addEventListener('click', (e) => {
+            const microrregiaoItem = e.target.closest('.microrregiao-item');
+            if (microrregiaoItem) {
+              e.stopPropagation();
+              const municipiosList = microrregiaoItem.nextElementSibling;
+              if (municipiosList && municipiosList.classList.contains('municipios-list')) {
+                municipiosList.style.display = municipiosList.style.display === 'block' ? 'none' : 'block';
+              }
+            }
+          });
+          
+          // Adiciona ao container principal
+          cont.appendChild(mesoDiv);
+          cont.appendChild(microrregioesDiv);
+        });
+      
+        console.log('=== Finalizando createLegend() ===');
+        addDebugMessage('Legenda criada com sucesso!');
+      } catch (error) {
+        console.error('Erro em createLegend():', error);
+        addDebugMessage('Erro ao criar legenda: ' + error.message);
+        throw error; // Propaga o erro para quem chamou a função
+      }
+    }
+  </script>
+</body>
+</html>
