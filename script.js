@@ -43,11 +43,11 @@ var info = L.control({position:'topright'});
 info.onAdd = function(map){ this._div = L.DomUtil.get('info'); return this._div; };
 info.update = function(props){
   this._div.innerHTML = '<h2>Dados do município</h2>'+(
-    props?`<b>${props.NM_MUN}</b><br>
-          CRAS: ${municipiosData[props.NM_MUN]?.CRAS||0}<br>
-          CREAS: ${municipiosData[props.NM_MUN]?.CREAS||0}<br>
-          SSAA: ${municipiosData[props.NM_MUN]?.SSAA||0}<br>
-          Total: ${municipiosData[props.NM_MUN]?.total||0}`
+    props?`<b>${props.name}</b><br>
+          CRAS: ${municipiosData[props.name]?.CRAS||0}<br>
+          CREAS: ${municipiosData[props.name]?.CREAS||0}<br>
+          SSAA: ${municipiosData[props.name]?.SSAA||0}<br>
+          Total: ${municipiosData[props.name]?.total||0}`
     :'Passe o mouse sobre um município'
   );
 };
@@ -81,7 +81,7 @@ function resetHighlight(e){
 
 function zoomToFeature(e){
   map.fitBounds(e.target.getBounds());
-  showPoints(e.target.feature.properties.NM_MUN);
+  showPoints(e.target.feature.properties.name);
 }
 
 function onEachFeature(feature,layer){
@@ -275,10 +275,35 @@ function highlightMunicipio(nomeMunicipio) {
   console.log('Procurando município:', nomeMunicipio);
   console.log('Total de features carregadas:', window.geojsonData.features.length);
   
-  // Encontra o recurso do município no GeoJSON
+  // Função para normalizar strings (remover acentos e converter para minúsculas)
+  const normalizeString = (str) => {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  };
+  
+  // Normaliza o nome do município para comparação
+  const nomeNormalizado = normalizeString(nomeMunicipio);
+  
+  // Encontra o recurso do município no GeoJSON com correspondência flexível
   const feature = window.geojsonData.features.find(
-    f => f.properties.NM_MUN === nomeMunicipio
+    f => normalizeString(f.properties.name) === nomeNormalizado
   );
+  
+  // Log para debug
+  if (feature) {
+    console.log('Município encontrado:', feature.properties.name);
+  } else {
+    console.log('Tentando encontrar correspondência parcial para:', nomeMunicipio);
+    // Tenta encontrar por correspondência parcial
+    const partialMatch = window.geojsonData.features.find(
+      f => normalizeString(f.properties.name).includes(nomeNormalizado) ||
+           nomeNormalizado.includes(normalizeString(f.properties.name))
+    );
+    
+    if (partialMatch) {
+      console.log('Correspondência parcial encontrada:', partialMatch.properties.name);
+      return highlightMunicipio(partialMatch.properties.name); // Chama novamente com o nome correto
+    }
+  }
   
   if (!feature) {
     console.error('Município não encontrado no GeoJSON:', nomeMunicipio);
