@@ -73,7 +73,9 @@ function highlight(e){
 }
 
 function resetHighlight(e){
-  geojsonMunicipios.resetStyle(e.target);
+  if (window.geojsonLayer && e && e.target) {
+    window.geojsonLayer.resetStyle(e.target);
+  }
   info.update();
 }
 
@@ -96,7 +98,6 @@ function showPoints(m){
 }
 
 // Variáveis globais
-var geojsonMunicipios;
 var mesoColors;
 var mesorregioesData = {};
 var contagemPorMesorregiao = {};
@@ -264,6 +265,137 @@ function createLegend() {
   }
 }
 
+// Função para centralizar e destacar um município no mapa
+function highlightMunicipio(nomeMunicipio) {
+  if (!window.geojsonData || !window.geojsonData.features) {
+    console.error('GeoJSON não carregado corretamente');
+    return;
+  }
+  
+  console.log('Procurando município:', nomeMunicipio);
+  console.log('Total de features carregadas:', window.geojsonData.features.length);
+  
+  // Encontra o recurso do município no GeoJSON
+  const feature = window.geojsonData.features.find(
+    f => f.properties.NM_MUN === nomeMunicipio
+  );
+  
+  if (!feature) {
+    console.error('Município não encontrado no GeoJSON:', nomeMunicipio);
+    return;
+  }
+  
+  console.log('Município encontrado:', feature);
+  
+  if (feature) {
+    // Remove qualquer destaque anterior
+    resetHighlight();
+    
+    // Adiciona a camada de destaque
+    if (window.highlightLayer) {
+      map.removeLayer(window.highlightLayer);
+    }
+    
+    window.highlightLayer = L.geoJSON(feature, {
+      style: {
+        weight: 3,
+        color: '#ff0000',
+        dashArray: '',
+        fillOpacity: 0.3
+      }
+    }).addTo(map);
+    
+    // Obtém os limites do município
+    const bounds = window.highlightLayer.getBounds();
+    
+    // Calcula o centro do município
+    const center = bounds.getCenter();
+    
+    // Ajusta o zoom com base no tamanho do município
+    const pixelBounds = map.latLngToLayerPoint(bounds.getNorthEast())
+      .subtract(map.latLngToLayerPoint(bounds.getSouthWest()));
+    const scale = Math.min(
+      (map.getSize().x * 0.4) / pixelBounds.x,
+      (map.getSize().y * 0.4) / pixelBounds.y
+    );
+    
+    // Define o zoom para mostrar o município com um pouco de espaço ao redor
+    const zoom = map.getBoundsZoom(bounds, true);
+    const newZoom = Math.min(zoom - 1, 10); // Limita o zoom máximo
+    
+    // Centraliza o mapa no município com um deslocamento para cima (25% da altura do mapa)
+    const mapHeight = map.getSize().y;
+    const offsetY = (mapHeight * 0.25) / Math.pow(2, newZoom - 1);
+    const newCenter = [center.lat - offsetY, center.lng];
+    
+    // Aplica o zoom e centraliza
+    map.setView(newCenter, newZoom, {
+      animate: true,
+      duration: 1,
+      easeLinearity: 0.5
+    });
+    
+    // Adiciona uma animação de pulso ao destaque
+    if (window.highlightLayer) {
+      const layer = window.highlightLayer;
+      let pulsing = true;
+      
+      function pulse() {
+        if (pulsing && layer) {
+          layer.setStyle({
+            weight: 3,
+            color: '#ff0000',
+            fillOpacity: 0.5
+          });
+          
+          setTimeout(() => {
+            if (layer) {
+              layer.setStyle({
+                weight: 3,
+                color: '#ff0000',
+                fillOpacity: 0.2
+              });
+            }
+          }, 500);
+        }
+      }
+      
+      // Inicia a animação de pulso
+      const pulseInterval = setInterval(pulse, 1000);
+      
+      // Para a animação após 3 segundos
+      setTimeout(() => {
+        pulsing = false;
+        clearInterval(pulseInterval);
+        if (layer) {
+          layer.setStyle({
+            weight: 3,
+            color: '#ff0000',
+            fillOpacity: 0.3
+          });
+        }
+      }, 3000);
+    }
+    
+    // Atualiza as informações do município
+    info.update(feature.properties);
+    
+    // Remove a classe 'active' de todos os municípios
+    document.querySelectorAll('.municipio').forEach(el => {
+      el.classList.remove('active');
+    });
+    
+    // Rola a legenda para mostrar o município clicado e adiciona a classe 'active'
+    setTimeout(() => {
+      const municipioElement = document.querySelector(`.municipio[onclick*="${nomeMunicipio.replace(/'/g, "\\'")}"]`);
+      if (municipioElement) {
+        municipioElement.classList.add('active');
+        municipioElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+}
+
 // Função para exibir os municípios de uma mesorregião
 function exibirMunicipios(mesorregiao) {
   console.log('Exibindo municípios para:', mesorregiao);
@@ -308,7 +440,9 @@ function exibirMunicipios(mesorregiao) {
     
     municipiosMicrorregiao.forEach(municipio => {
       html += `
-        <div class="municipio">
+        <div class="municipio" onclick="highlightMunicipio('${municipio.replace(/'/g, "\\'")}')" 
+             style="cursor: pointer;"
+             title="Clique para localizar no mapa">
           ${municipio}
         </div>
       `;
@@ -430,13 +564,19 @@ fetch('municipios_ma.json')
   .then(response => response.json())
   .then(geojson => {
     console.log('GeoJSON carregado com', geojson.features.length, 'elementos');
-    // Adiciona os municípios ao mapa
-    geojsonMunicipios = L.geoJSON(geojson, {
+    
+    // Armazena os dados brutos do GeoJSON
+    window.geojsonData = geojson;
+    
+    // Cria a camada do Leaflet
+    window.geojsonLayer = L.geoJSON(geojson, {
       style: styleMeso,
       onEachFeature: onEachFeature
     }).addTo(map);
     
     // Ajusta a visualização para mostrar todos os municípios
-    map.fitBounds(geojsonMunicipios.getBounds());
+    map.fitBounds(window.geojsonLayer.getBounds());
+    
+    console.log('GeoJSON e camada do Leaflet configurados com sucesso');
   })
   .catch(error => console.error('Erro ao carregar o GeoJSON:', error));
