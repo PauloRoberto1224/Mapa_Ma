@@ -52,10 +52,42 @@
       z-index: 1000;
       display: flex;
       flex-direction: column;
+    }
+
+    #search-municipio {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .search-container {
+      margin-bottom: 15px;
+      width: 100%;
+    }
+
+    .search-container label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .municipio.hidden {
+      display: none !important;
+    }
+
+    .municipio {
+      border-left: 1px solid #ddd;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
       height: 100% !important;
       overflow: hidden;
     }
-    
+
     #legend-content {
       flex: 1;
       overflow-y: auto;
@@ -445,8 +477,13 @@
         <span class="refresh-icon">↻</span>
       </button>
     </div>
-    <div id="legend-content">Carregando legenda...</div>
-  </div>
+    <div id="legend" class="legend">
+      <div class="search-container">
+        <label for="search-municipio">Pesquisar Município:</label>
+        <input type="text" id="search-municipio" placeholder="Digite o nome do município...">
+      </div>
+      <div id="legend-content"></div>
+    </div>
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

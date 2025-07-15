@@ -624,6 +624,9 @@ function exibirMunicipios(mesorregiao) {
   const municipios = getMunicipiosPorMesorregiao(mesorregiao);
   const cor = getColorForMesorregiao(mesorregiao);
   
+  // Armazena todos os municípios em um array para filtragem
+  window.todosMunicipios = municipios.map(m => m);
+  
   let html = `
     <div class="mesorregiao-info">
       <h3>${mesorregiao}</h3>
@@ -713,6 +716,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (processarDadosMesorregioes()) {
       console.log('Dados processados com sucesso');
       addDebugMessage('Dados processados com sucesso');
+      
+      // Configura o campo de pesquisa
+      const searchInput = document.getElementById('search-municipio');
+      if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+          const searchTerm = e.target.value.toLowerCase();
+          const municipios = document.querySelectorAll('.municipio');
+          
+          municipios.forEach(municipio => {
+            const nome = municipio.textContent.toLowerCase();
+            if (nome.includes(searchTerm)) {
+              municipio.classList.remove('hidden');
+            } else {
+              municipio.classList.add('hidden');
+            }
+          });
+        });
+      }
       
       // Tenta criar a legenda após um pequeno atraso
       setTimeout(() => {
