@@ -1,67 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <title>Mapa do Maranhão</title>
   <meta charset="utf-8" />
-  <title>Maranhão Interativo (com Legenda)</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body, html { 
-      margin: 0; 
-      height: 100%; 
-      font-family: Arial, sans-serif; 
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
       overflow: hidden;
     }
     
     #map {
-      width: 75%; 
-      height: 100%; 
-      float: left;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 350px; /* Ajustado para a nova largura da legenda */
+      z-index: 1;
     }
     
     #info {
-      width: 25%; 
-      height: 60%; 
-      float: left; 
-      padding: 15px; 
-      box-sizing: border-box; 
-      overflow: auto;
+      position: absolute;
+      top: 10px;
+      right: 370px; /* Ajustado para a nova largura da legenda */
+      width: 280px;
+      padding: 15px;
+      box-sizing: border-box;
+      overflow: visible;
       background: #fff;
-      box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
     }
     
     #legend {
-      width: 25%; 
-      height: 40%; 
-      float: left; 
-      padding: 15px; 
-      box-sizing: border-box; 
-      overflow: auto; 
-      background: #f5f5f5; 
-      border-top: 1px solid #ddd;
-      box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 350px;
+      padding: 20px;
+      box-sizing: border-box;
+      background: #f5f5f5;
+      border-left: 1px solid #ddd;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      height: 100vh !important;
+      overflow: hidden;
+    }
+    
+    #legend-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 5px;
+      margin-top: 10px;
+      background: white;
+      border-radius: 4px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      height: calc(100% - 60px);
+      min-height: 0;
+    }
+    
+    .mesorregiao-item {
+      margin-bottom: 10px;
+      padding: 12px;
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 4px solid #ccc;
     }
     
     /* Estilos responsivos */
     @media (max-width: 1024px) {
-      #map { width: 60%; }
-      #info, #legend { width: 40%; }
+      #map { right: 40%; }
+      #legend { width: 40%; }
     }
     
     @media (max-width: 768px) {
       #map { 
-        width: 100%; 
-        height: 50%; 
-        float: none; 
-      }
-      #info, #legend { 
-        width: 100%; 
-        height: 25%; 
+        width: 100%;
+        height: 50%;
         float: none;
-        overflow-y: auto;
       }
-      #info {
-        border-bottom: 1px solid #ddd;
+      #info, #legend {
+        width: 100%;
+        height: 25%;
+        float: none;
+        position: relative;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        margin: 10px 0;
       }
     }
     
@@ -69,64 +106,45 @@
       #map { height: 40%; }
       #info { height: 30%; }
       #legend { height: 30%; }
-      
-      .municipios-microrregiao {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      }
     }
-    #legend h3 { margin-top:0; color:#333; }
-    .legend-item { 
-      margin-bottom: 8px; 
-      padding: 8px;
-      background: white;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      cursor: pointer;
+    
+    /* Estilos dos elementos da legenda */
+    .legend-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0 0 10px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
     }
-    .legend-item:hover {
-      background: #f0f0f0;
+    
+    .legend-header h3 {
+      margin: 0;
+      color: #2d3748;
+      font-size: 16px;
     }
-    .legend-color { 
-      display:inline-block; 
-      width:20px; 
-      height:20px; 
-      margin-right:8px; 
-      vertical-align:middle;
-      border:1px solid #999;
-      border-radius:3px;
+    
+    #legend-content {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 5px;
     }
-    .mesorregiao-title {
-      font-weight: bold;
-      color: #333;
+    
+    #legend-content::-webkit-scrollbar {
+      width: 6px;
     }
-    .microrregioes {
-      margin-left: 15px;
-      margin-top: 5px;
-      border-left: 2px solid #ddd;
-      padding-left: 10px;
-    }
-    .microrregiao {
-      margin: 5px 0;
-      padding: 5px;
-      background: #f9f9f9;
+    
+    #legend-content::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
       border-radius: 3px;
     }
-    .microrregiao-item {
-      font-weight: 500;
-      color: #555;
-    }
-    .municipios-list {
-      margin-top: 5px;
-      padding: 5px;
-      background: white;
-      border: 1px solid #eee;
+    
+    #legend-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
       border-radius: 3px;
-      font-size: 0.9em;
-      color: #666;
     }
-    .mesorregioes-lista {
-      margin-top: 10px;
-    }
+    
+    /* Estilos para itens da legenda */
     .mesorregiao-item {
       margin-bottom: 8px;
       padding: 10px;
@@ -136,73 +154,79 @@
       cursor: pointer;
       transition: all 0.2s;
     }
+    
     .mesorregiao-item:hover {
       background: #f0f0f0;
       transform: translateX(5px);
     }
+    
     .mesorregiao-nome {
       font-weight: bold;
       display: block;
       margin-bottom: 4px;
     }
+    
     .mesorregiao-contagem {
       font-size: 0.9em;
       color: #666;
     }
+    
+    /* Estilos para o painel de informações */
     .mesorregiao-info h3 {
       margin-top: 0;
-      color: #333;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 8px;
-    }
-    .mesorregiao-info button {
+      color: #2c3e50;
+      font-size: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
       margin-bottom: 15px;
-      padding: 5px 10px;
-      background: #4CAF50;
+    }
+    
+    /* Estilos para botões */
+    .retry-btn, .refresh-btn, .back-btn {
+      background-color: #4299e1;
       color: white;
       border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    .mesorregiao-info button:hover {
-      background: #45a049;
-    }
-    .municipios-lista {
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    .microrregiao-titulo {
-      font-weight: bold;
-      margin-top: 10px;
-      color: #2c3e50;
-    }
-    .municipios-microrregiao {
-      margin-left: 20px;
-      margin-bottom: 10px;
-    }
-    .municipios-microrregiao {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 8px;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 0 0 6px 6px;
-    }
-    
-    .municipio {
-      padding: 5px 8px;
-      background-color: white;
+      padding: 8px 16px;
       border-radius: 4px;
-      font-size: 13px;
-      text-align: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-      transition: all 0.2s;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+      margin-bottom: 15px;
     }
     
-    .municipio:hover {
-      background-color: #f0f7ff;
-      transform: translateY(-2px);
-      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    .retry-btn:hover, .refresh-btn:hover, .back-btn:hover {
+      background-color: #3182ce;
+    }
+    
+    .refresh-btn {
+      background: none;
+      color: #4a5568;
+      padding: 5px 10px;
+      margin-left: 10px;
+    }
+    
+    .refresh-btn:hover {
+      background-color: #e2e8f0;
+    }
+    
+    .refresh-icon {
+      font-size: 16px;
+      display: inline-block;
+      transition: transform 0.3s;
+    }
+    
+    .refresh-btn:hover .refresh-icon {
+      transform: rotate(180deg);
+    }
+    
+    /* Estilos para a lista de municípios */
+    .municipios-lista {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 5px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
     }
     
     .microrregiao-container {
@@ -211,6 +235,10 @@
       border-radius: 6px;
       overflow: hidden;
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
     }
     
     .microrregiao-titulo {
@@ -224,40 +252,33 @@
       align-items: center;
     }
     
-    .mesorregiao-info {
-      padding: 15px;
+    .municipios-microrregiao {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+      padding: 10px;
+      background-color: #f9f9f9;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      height: 100%;
     }
     
-    .mesorregiao-info h3 {
-      margin-top: 0;
-      color: #2c3e50;
-      font-size: 20px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #eee;
-      margin-bottom: 15px;
-    }
-    
-    .mesorregiao-info button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      padding: 8px 16px;
+    .municipio {
+      padding: 8px 10px;
+      background-color: white;
       border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      margin-bottom: 15px;
-      transition: background-color 0.2s;
+      font-size: 13px;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: all 0.2s;
+      word-break: break-word;
     }
     
-    .mesorregiao-info button:hover {
-      background-color: #2980b9;
-    }
-    
-    .municipios-lista h4 {
-      margin-top: 0;
-      color: #555;
-      font-size: 16px;
-      margin-bottom: 15px;
+    .municipio:hover {
+      background-color: #f0f7ff;
+      transform: translateY(-2px);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
     }
     
     /* Estilos para o indicador de carregamento */
@@ -310,583 +331,25 @@
       border-radius: 3px;
       word-break: break-word;
     }
-    
-    /* Estilos para botões */
-    .retry-btn, .refresh-btn {
-      background-color: #4299e1;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.2s;
-    }
-    
-    .retry-btn:hover, .refresh-btn:hover {
-      background-color: #3182ce;
-    }
-    
-    .retry-btn:active, .refresh-btn:active {
-      transform: translateY(1px);
-    }
-    
-    .refresh-btn {
-      background: none;
-      color: #4a5568;
-      padding: 5px 10px;
-      margin-left: 10px;
-    }
-    
-    .refresh-btn:hover {
-      background-color: #e2e8f0;
-    }
-    
-    .refresh-icon {
-      font-size: 16px;
-      display: inline-block;
-      transition: transform 0.3s;
-    }
-    
-    .refresh-btn:hover .refresh-icon {
-      transform: rotate(180deg);
-    }
-    
-    .legend-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    
-    .legend-header h3 {
-      margin: 0;
-      color: #2d3748;
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="info"><h2>Mapa do Maranhão</h2><p>Passe o mouse sobre um município</p></div>
   <div id="legend">
-    <h3>Legenda</h3>
+    <div class="legend-header">
+      <h3>Legenda</h3>
+      <button class="refresh-btn" aria-label="Atualizar legenda">
+        <span class="refresh-icon">↻</span>
+      </button>
+    </div>
     <div id="legend-content">Carregando legenda...</div>
-    <div id="debug-info" style="margin-top: 20px; font-size: 12px; color: #666;"></div>
   </div>
 
+  <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="data.js"></script>
-  <script src="mesorregioes.js"></script> <!-- Contém a definição de dadosMesorregioes -->
-
-  <script>
-    console.log('Script principal carregado');
-    
-    // Função para adicionar mensagem de debug na interface (definida mais adiante no código)
-    
-    addDebugMessage('Iniciando aplicação...');
-    var map = L.map('map').setView([-5, -45], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution: ' OpenStreetMap'
-    }).addTo(map);
-
-    var markersLayer = L.layerGroup().addTo(map);
-
-    var info = L.control({position:'topright'});
-    info.onAdd = function(map){ this._div = L.DomUtil.get('info'); return this._div; };
-    info.update = function(props){
-      this._div.innerHTML = '<h2>Dados do município</h2>'+(
-        props?`<b>${props.NM_MUN}</b><br>
-              CRAS: ${municipiosData[props.NM_MUN]?.CRAS||0}<br>
-              CREAS: ${municipiosData[props.NM_MUN]?.CREAS||0}<br>
-              SSAA: ${municipiosData[props.NM_MUN]?.SSAA||0}<br>
-              Total: ${municipiosData[props.NM_MUN]?.total||0}`
-        :'Passe o mouse sobre um município'
-      );
-    };
-    info.addTo(map);
-
-    var municipiosData = {};
-    function countByMunicipio(){
-      data.forEach(d=>{
-        var m = d.Municipio;
-        if(!municipiosData[m]) municipiosData[m]={CRAS:0,CREAS:0,SSAA:0,total:0};
-        municipiosData[m][d.Tipo]++;
-        municipiosData[m].total++;
-      });
-    }
-    countByMunicipio();
-
-    function highlight(e){
-      var l=e.target;
-      l.setStyle({weight:2,fillOpacity:0.8});
-      info.update(l.feature.properties);
-    }
-    function resetHighlight(e){
-      geojsonMunicipios.resetStyle(e.target);
-      info.update();
-    }
-    function zoomToFeature(e){
-      map.fitBounds(e.target.getBounds());
-      showPoints(e.target.feature.properties.NM_MUN);
-    }
-    function onEachFeature(feature,layer){
-      layer.on({mouseover:highlight, mouseout:resetHighlight, click:zoomToFeature});
-    }
-    function showPoints(m){
-      markersLayer.clearLayers();
-      data.filter(d=>d.Municipio===m).forEach(d=>{
-        L.marker([+d.Latitude, +d.Longitude])
-          .bindPopup(`<b>${d.Nome}</b><br>${d.Tipo}`)
-          .addTo(markersLayer);
-      });
-    }
-
-    // Variáveis globais
-    var geojsonMunicipios;
-    var mesoColors;
-    var mesorregioesData = {};
-    var contagemPorMesorregiao = {};
-    var municipioToMesorregiao = {}; // Mapeia cada município para sua mesorregião
-    var mesorregioes = []; // Lista de todas as mesorregiões
-
-    // Inicializa as estruturas de dados para o mapeamento de municípios
-    mesorregioesData = {};
-    contagemPorMesorregiao = {};
-    municipioToMesorregiao = {};
-    mesorregioes.length = 0; // Limpa o array
-    
-    // Função para adicionar mensagens de debug na interface
-    function addDebugMessage(msg) {
-      try {
-        // Log no console
-        console.log('DEBUG:', msg);
-        
-        // Verifica se o elemento de debug existe e se a mensagem é válida
-        const debugEl = document.getElementById('debug-messages');
-        if (!debugEl || !msg) return;
-        
-        // Cria um novo elemento de mensagem
-        const msgEl = document.createElement('div');
-        
-        // Formata a mensagem com timestamp
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString();
-        const msgStr = typeof msg === 'string' ? msg : JSON.stringify(msg);
-        
-        // Define o conteúdo da mensagem
-        msgEl.textContent = timeStr + ': ' + msgStr;
-        
-        // Adiciona a mensagem ao container de debug
-        debugEl.appendChild(msgEl);
-        
-        // Rola para a última mensagem
-        debugEl.scrollTop = debugEl.scrollHeight;
-      } catch (err) {
-        console.error('Erro em addDebugMessage:', err);
-      }
-    }
-    
-    // Função para processar os dados das mesorregiões
-    function processarDadosMesorregioes() {
-      console.log('Iniciando processamento dos dados das mesorregiões...');
-      try {
-        // Limpa estruturas de dados existentes
-        mesorregioes.length = 0;
-        Object.keys(mesorregioesData).forEach(key => delete mesorregioesData[key]);
-        Object.keys(contagemPorMesorregiao).forEach(key => delete contagemPorMesorregiao[key]);
-        Object.keys(municipioToMesorregiao).forEach(key => delete municipioToMesorregiao[key]);
-        
-        // Inicializa as estruturas de dados
-        Object.keys(dadosMesorregioes).forEach(mesorregiao => {
-          mesorregioesData[mesorregiao] = [];
-          contagemPorMesorregiao[mesorregiao] = 0;
-          if (!mesorregioes.includes(mesorregiao)) {
-            mesorregioes.push(mesorregiao);
-          }
-        });
-        
-        // Processa os dados das mesorregiões
-        Object.entries(dadosMesorregioes).forEach(([mesorregiao, microrregioes]) => {
-          if (typeof microrregioes === 'object' && microrregioes !== null) {
-            Object.values(microrregioes).forEach(municipios => {
-              if (Array.isArray(municipios)) {
-                // Adiciona à lista de municípios da mesorregião (garantindo que seja um array)
-                if (!Array.isArray(mesorregioesData[mesorregiao])) {
-                  mesorregioesData[mesorregiao] = [];
-                }
-                
-                // Adiciona cada município individualmente
-                municipios.forEach(municipio => {
-                  if (typeof municipio === 'string') {
-                    const municipioTrim = municipio.trim();
-                    if (!mesorregioesData[mesorregiao].includes(municipioTrim)) {
-                      mesorregioesData[mesorregiao].push(municipioTrim);
-                      municipioToMesorregiao[municipioTrim] = mesorregiao;
-                      contagemPorMesorregiao[mesorregiao] = (contagemPorMesorregiao[mesorregiao] || 0) + 1;
-                    }
-                  }
-                });
-              }
-            });
-          }
-        });
-        
-        console.log('Dados processados com sucesso');
-        return true;
-      } catch (error) {
-        console.error('Erro ao processar os dados:', error);
-        addDebugMessage('Erro ao processar os dados: ' + error.message);
-        return false;
-      }
-    }
-    
-    // Exibe a contagem de municípios por mesorregião
-    function exibirContagem() {
-      try {
-        const contagemDiv = document.createElement('div');
-        contagemDiv.style.marginTop = '10px';
-        contagemDiv.style.padding = '10px';
-        contagemDiv.style.background = '#f0f0f0';
-        contagemDiv.style.borderRadius = '4px';
-        
-        const titulo = document.createElement('h4');
-        titulo.textContent = 'Municípios por Mesorregião:';
-        titulo.style.marginTop = '0';
-        contagemDiv.appendChild(titulo);
-        
-        const lista = document.createElement('ul');
-        lista.style.margin = '5px 0 0 0';
-        lista.style.paddingLeft = '20px';
-        
-        // Adiciona cada mesorregião à lista
-        Object.entries(contagemPorMesorregiao).forEach(([mesorregiao, quantidade]) => {
-          console.log(`- ${mesorregiao}: ${quantidade} municípios`);
-          const item = document.createElement('li');
-          item.textContent = `${mesorregiao}: ${quantidade} municípios`;
-          lista.appendChild(item);
-        });
-        
-        // Adiciona o total
-        const total = Object.keys(municipioToMesorregiao).length;
-        console.log(`Total de municípios mapeados: ${total}`);
-        
-        const totalItem = document.createElement('li');
-        totalItem.style.marginTop = '5px';
-        totalItem.style.fontWeight = 'bold';
-        totalItem.textContent = `Total: ${total} municípios`;
-        lista.appendChild(totalItem);
-        
-        contagemDiv.appendChild(lista);
-        
-        // Adiciona ao debug-info
-        const debugInfo = document.getElementById('debug-info');
-        if (debugInfo) {
-          debugInfo.insertBefore(contagemDiv, debugInfo.firstChild);
-        }
-        
-        return true;
-      } catch (error) {
-        console.error('Erro ao exibir contagem:', error);
-        addDebugMessage('Erro ao exibir contagem: ' + error.message);
-        return false;
-      }
-    }
-    
-    // Processa os dados e exibe a contagem
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('=== DOM totalmente carregado ===');
-      addDebugMessage('DOM totalmente carregado');
-      
-      try {
-        console.log('Iniciando processamento dos dados...');
-        addDebugMessage('Iniciando processamento dos dados...');
-        
-        if (processarDadosMesorregioes()) {
-          console.log('Dados processados com sucesso, exibindo contagem...');
-          addDebugMessage('Dados processados com sucesso');
-          exibirContagem();
-          
-          // Tenta criar a legenda após um pequeno atraso
-          setTimeout(() => {
-            console.log('Tentando criar a legenda...');
-            addDebugMessage('Criando legenda...');
-            try {
-              createLegend();
-              console.log('Legenda criada com sucesso!');
-              addDebugMessage('Legenda criada com sucesso!');
-            } catch (e) {
-              console.error('Erro ao criar legenda:', e);
-              addDebugMessage('Erro ao criar legenda: ' + e.message);
-            }
-          }, 500);
-        }
-      } catch (error) {
-        console.error('Erro ao processar dados iniciais:', error);
-        addDebugMessage('Erro ao processar dados iniciais: ' + error.message);
-      }
-    });
-    
-    // Função para obter a cor da mesorregião
-    function getColorForMesorregiao(mesorregiao) {
-      // Cores fixas para cada mesorregião
-      const colors = {
-        'Norte Maranhense': '#1f78b4',
-        'Oeste Maranhense': '#33a02c',
-        'Centro Maranhense': '#ff7f00',
-        'Leste Maranhense': '#6a3d9a',
-        'Sul Maranhense': '#e31a1c'  // Vermelho para o Sul Maranhense
-      };
-      return colors[mesorregiao] || '#999999';
-    }
-
-    // Carrega os dados e monta a legenda
-    console.log('Iniciando carregamento do meso_colors.json...');
-    fetch('meso_colors.json')
-      .then(r => {
-        console.log('Resposta do fetch:', r.status);
-        if (!r.ok) {
-          throw new Error(`Erro ${r.status} ao carregar meso_colors.json`);
-        }
-        return r.json();
-      })
-      .then(meso => {
-        console.log('meso_colors carregado com sucesso');
-        mesoColors = meso.features;
-        console.log('Quantidade de features carregadas:', mesoColors ? mesoColors.length : 0);
-        createLegend();
-      })
-      .catch(error => {
-        console.error('Erro ao carregar meso_colors.json:', error);
-        // Mesmo com erro, tenta criar a legenda com os dados que já temos
-        createLegend();
-      });
-
-      // Aplicar estilos no mapa de municípios
-      function styleMeso(feature){
-        const nomeMunicipio = feature.properties.name || 'Desconhecido';
-        // Se não encontrar a mesorregião, assume que é do Sul Maranhense
-        const mesorregiao = municipioToMesorregiao[nomeMunicipio] || 'Sul Maranhense';
-        const color = getColorForMesorregiao(mesorregiao);
-        
-        console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao, 'Cor:', color);
-        
-        // Armazena a mesorregião nas propriedades do feature para uso posterior
-        feature.properties.mesorregiao = mesorregiao;
-        
-        return {
-          fillColor: color,
-          weight: 1,
-          opacity: 1,
-          color: '#555',
-          fillOpacity: 0.8,
-          dashArray: ''
-        };
-      }
-
-      // Primeiro carrega o GeoJSON dos municípios
-      fetch('municipios_ma.json')
-        .then(response => response.json())
-        .then(geojson => {
-          console.log('GeoJSON carregado com', geojson.features.length, 'elementos');
-          // Adiciona os municípios ao mapa
-          geojsonMunicipios = L.geoJSON(geojson, {
-            style: styleMeso,
-            onEachFeature: onEachFeature
-          }).addTo(map);
-          
-          // Ajusta a visualização para mostrar todos os municípios
-          map.fitBounds(geojsonMunicipios.getBounds());
-        })
-        .catch(error => console.error('Erro ao carregar o GeoJSON:', error));
-
-    // Estilo CSS para a legenda interativa
-    const style = document.createElement('style');
-    style.textContent = `
-      .legend-item {
-        margin-bottom: 5px;
-        cursor: pointer;
-        padding: 5px;
-        border-radius: 3px;
-      }
-      .legend-item:hover {
-        background-color: #f0f0f0;
-      }
-      .microrregiao {
-        margin-left: 20px;
-        margin-top: 5px;
-        display: none;
-      }
-      .microrregiao-item {
-        margin-left: 20px;
-        font-size: 0.9em;
-        color: #555;
-      }
-      .municipios-list {
-        display: none;
-        margin-left: 20px;
-        font-size: 0.8em;
-        color: #666;
-        font-style: italic;
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Função para exibir os municípios de uma mesorregião
-    function exibirMunicipios(mesorregiao) {
-      const cont = document.getElementById('legend-content');
-      if (!cont) return;
-      
-      const dados = getMunicipiosPorMesorregiao(mesorregiao);
-      let html = `
-        <div class="mesorregiao-info">
-          <h3>${mesorregiao}</h3>
-          <button onclick="createLegend()">Voltar</button>
-          <div class="municipios-lista">
-            <h4>Municípios por Microrregião:</h4>
-      `;
-      
-      // Adiciona todas as microrregiões e seus municípios
-      for (const microrregiao in dados) {
-        html += `
-          <div class="microrregiao-container">
-            <div class="microrregiao-titulo">
-              ${microrregiao} (${dados[microrregiao].length} municípios)
-            </div>
-            <div class="municipios-microrregiao">
-              ${dados[microrregiao].map(mun => `<div class="municipio">${mun}</div>`).join('')}
-            </div>
-          </div>
-        `;
-      }
-      
-      html += `
-          </div>
-        </div>
-      `;
-      
-      cont.innerHTML = html;
-    }
-
-    // Função para obter a lista de mesorregiões do Maranhão
-    function getMesorregioes() {
-      return Object.keys(dadosMesorregioes);
-    }
-    
-    // Função para obter os municípios de uma mesorregião agrupados por microrregião
-    function getMunicipiosPorMesorregiao(mesorregiao) {
-      if (!mesorregiao || !dadosMesorregioes[mesorregiao]) {
-        console.error('Mesorregião não encontrada:', mesorregiao);
-        return {};
-      }
-      return dadosMesorregioes[mesorregiao];
-    }
-
-    // Monta a legenda HTML com as mesorregiões
-    function createLegend() {
-      console.log('=== Iniciando createLegend() ===');
-      addDebugMessage('Criando legenda interativa...');
-      
-      // Mostra indicador de carregamento
-      const cont = document.getElementById('legend-content');
-      if (!cont) {
-        console.error('Elemento da legenda não encontrado');
-        addDebugMessage('Erro: Elemento da legenda não encontrado');
-        return;
-      }
-      
-      // Mostra indicador de carregamento
-      cont.innerHTML = `
-        <div class="loading-indicator">
-          <div class="spinner"></div>
-          <p>Carregando mesorregiões...</p>
-        </div>
-      `;
-      
-      try {
-        // Obtém as mesorregiões de forma assíncrona para não travar a interface
-        setTimeout(() => {
-          try {
-            const mesorregioes = getMesorregioes();
-            
-            if (!mesorregioes || mesorregioes.length === 0) {
-              throw new Error('Nenhuma mesorregião encontrada');
-            }
-            
-            // Cria o HTML da legenda
-            let html = `
-              <div class="legend-header">
-                <h3>Mesorregiões do Maranhão</h3>
-                <button class="refresh-btn" onclick="createLegend()" aria-label="Atualizar legenda">
-                  <span class="refresh-icon">↻</span>
-                </button>
-              </div>
-              <div class="mesorregioes-lista">
-            `;
-            
-            // Adiciona cada mesorregião como um item clicável
-            mesorregioes.forEach(mesorregiao => {
-              try {
-                const cor = getColorForMesorregiao(mesorregiao);
-                const totalMunicipios = Object.values(dadosMesorregioes[mesorregiao] || {})
-                  .reduce((total, municipios) => {
-                    return total + (Array.isArray(municipios) ? municipios.length : 0);
-                  }, 0);
-                
-                // Escapa caracteres especiais para evitar injeção de código
-                const safeMesorregiao = mesorregiao
-                  .replace(/&/g, '&amp;')
-                  .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;')
-                  .replace(/'/g, '&#039;');
-                
-                html += `
-                  <div class="mesorregiao-item" 
-                       style="border-left: 4px solid ${cor}"
-                       onclick="exibirMunicipios('${safeMesorregiao}')"
-                       role="button"
-                       tabindex="0"
-                       onkeydown="if(event.key === 'Enter') exibirMunicipios('${safeMesorregiao}')">
-                    <span class="mesorregiao-nome">${safeMesorregiao}</span>
-                    <span class="mesorregiao-contagem">${totalMunicipios} municípios</span>
-                  </div>
-                `;
-              } catch (error) {
-                console.error(`Erro ao processar a mesorregião ${mesorregiao}:`, error);
-                addDebugMessage(`Erro ao processar a mesorregião ${mesorregiao}: ${error.message}`);
-              }
-            });
-            
-            html += '</div>';
-            cont.innerHTML = html;
-            
-            console.log('=== Finalizando createLegend() ===');
-            addDebugMessage('Legenda criada com sucesso!');
-            
-          } catch (error) {
-            console.error('Erro ao criar a legenda:', error);
-            cont.innerHTML = `
-              <div class="error-message">
-                <p>Não foi possível carregar as mesorregiões.</p>
-                <button onclick="createLegend()" class="retry-btn">Tentar novamente</button>
-                <p class="error-details">${error.message}</p>
-              </div>
-            `;
-            addDebugMessage('Erro ao criar legenda: ' + error.message);
-          }
-        }, 100); // Pequeno atraso para garantir que a UI seja atualizada
-        
-      } catch (error) {
-        console.error('Erro em createLegend():', error);
-        cont.innerHTML = `
-          <div class="error-message">
-            <p>Ocorreu um erro inesperado ao carregar a legenda.</p>
-            <button onclick="createLegend()" class="retry-btn">Tentar novamente</button>
-          </div>
-        `;
-        addDebugMessage('Erro ao criar legenda: ' + error.message);
-      }
-    }
-  </script>
+  <script src="mesorregioes.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
