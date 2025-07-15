@@ -47,7 +47,8 @@ const markerStyles = {
   CRAS: { color: '#1f78b4', icon: 'fas fa-home' },  // Azul para CRAS
   CREAS: { color: '#33a02c', icon: 'fas fa-shield-alt' },  // Verde para CREAS
   SSAA: { color: '#ff7f00', icon: 'fas fa-utensils' },   // Laranja para SSAA
-  restaurante: { color: '#ff7f00', icon: 'fas fa-utensils' }   // Laranja para restaurante
+  restaurante: { color: '#ff7f00', icon: 'fas fa-utensils' },   // Laranja para restaurante
+  restaurante_popular: { color: '#ff0000', icon: 'fas fa-utensils' }   // Vermelho para restaurantes populares
 };
 
 // Função para criar marcador com estilo específico
