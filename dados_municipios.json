@@ -1,0 +1,46 @@
+{
+  "municipios": [
+    {
+      "Municipio": "AÇAILÂNDIA",
+      "Tipo": "CRAS",
+      "Latitude": -4.4195566281,
+      "Longitude": -47.0166128751
+    },
+    {
+      "Municipio": "AÇAILÂNDIA",
+      "Tipo": "CREAS",
+      "Latitude": -4.4195566281,
+      "Longitude": -47.0166128751
+    },
+    {
+      "Municipio": "AÇAILÂNDIA",
+      "Tipo": "SSAA",
+      "Latitude": -4.4195566281,
+      "Longitude": -47.0166128751
+    },
+    {
+      "Municipio": "AMARANTE DO MARANHÃO",
+      "Tipo": "CRAS",
+      "Latitude": -4.8505856411,
+      "Longitude": -46.4645649712
+    },
+    {
+      "Municipio": "AMARANTE DO MARANHÃO",
+      "Tipo": "CREAS",
+      "Latitude": -4.8505856411,
+      "Longitude": -46.4645649712
+    },
+    {
+      "Municipio": "ANAJATUBA",
+      "Tipo": "CRAS",
+      "Latitude": -3.0500128885,
+      "Longitude": -44.5553657585
+    },
+    {
+      "Municipio": "ANAJATUBA",
+      "Tipo": "CREAS",
+      "Latitude": -3.0500128885,
+      "Longitude": -44.5553657585
+    }
+  ]
+}

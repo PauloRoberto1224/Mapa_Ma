@@ -734,6 +734,69 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// Função para processar os dados das mesorregiões
+function processarDadosMesorregioes() {
+  try {
+    console.log('Iniciando processamento dos dados das mesorregiões...');
+    
+    // Limpa as estruturas de dados existentes
+    Object.keys(mesorregioesData).forEach(key => delete mesorregioesData[key]);
+    Object.keys(contagemPorMesorregiao).forEach(key => delete contagemPorMesorregiao[key]);
+    Object.keys(municipioToMesorregiao).forEach(key => delete municipioToMesorregiao[key]);
+    
+    // Inicializa as estruturas de dados
+    Object.keys(dadosMesorregioes).forEach(mesorregiao => {
+      mesorregioesData[mesorregiao] = [];
+      contagemPorMesorregiao[mesorregiao] = 0;
+      if (!mesorregioes.includes(mesorregiao)) {
+        mesorregioes.push(mesorregiao);
+      }
+    });
+    
+    // Processa os dados das mesorregiões
+    Object.entries(dadosMesorregioes).forEach(([mesorregiao, microrregioes]) => {
+      if (typeof microrregioes === 'object' && microrregioes !== null) {
+        Object.values(microrregioes).forEach(municipios => {
+          if (Array.isArray(municipios)) {
+            municipios.forEach(municipio => {
+              // Normaliza o nome do município
+              const nomeNormalizado = normalizeString(municipio);
+              
+              // Adiciona à lista de municípios da mesorregião
+              mesorregioesData[mesorregiao].push({
+                nome: municipio,
+                nomeNormalizado: nomeNormalizado
+              });
+              
+              // Incrementa o contador da mesorregião
+              contagemPorMesorregiao[mesorregiao]++;
+              
+              // Adiciona ao mapeamento de municípios para mesorregiões
+              municipioToMesorregiao[municipio] = mesorregiao;
+            });
+          }
+        });
+      }
+    });
+    
+    // Ordena os municípios por nome em cada mesorregião
+    Object.keys(mesorregioesData).forEach(mesorregiao => {
+      mesorregioesData[mesorregiao].sort((a, b) => {
+        return a.nome.localeCompare(b.nome);
+      });
+    });
+    
+    console.log('Dados processados com sucesso');
+    console.log('Total de mesorregiões:', mesorregioes.length);
+    console.log('Total de municípios:', Object.keys(municipioToMesorregiao).length);
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao processar dados das mesorregiões:', error);
+    return false;
+  }
+}
+
 // Carrega os dados e monta a legenda
 console.log('Iniciando carregamento do meso_colors.json...');
 fetch('meso_colors.json')
@@ -769,11 +832,19 @@ function normalizeString(str) {
   // Substitui diferentes tipos de hífen por um hífen comum
   str = str.replace(/[‑‒–—―]/g, '-'); // Substitui hífens Unicode por hífen comum
   
-  // Substitui espaços por hífen para correspondência exata
-  str = str.replace(/\s+/g, '-');
+  // Substitui múltiplos espaços por um único espaço
+  str = str.replace(/\s+/g, ' ');
   
-  // Remove espaços extras (agora que já substituímos por hífen)
+  // Remove espaços extras no início/fim
   str = str.trim();
+  
+  // Mantém a primeira letra maiúscula de cada palavra
+  str = str.replace(/\b./g, function(a){ return a.toUpperCase(); });
+  
+  // Se o nome contém hífen, mantém a primeira letra de cada palavra em maiúscula
+  if (str.includes('-')) {
+    str = str.replace(/\b[a-z]/g, function(a){ return a.toUpperCase(); });
+  }
   
   return str;
 }
@@ -782,29 +853,26 @@ function normalizeString(str) {
 function styleMeso(feature) {
   const nomeMunicipio = feature.properties.name || 'Desconhecido';
   
-  // Normaliza o nome do município para busca - mantém a primeira letra maiúscula
-  const nomeNormalizado = normalizeString(nomeMunicipio).replace(/\b./g, function(a){ return a.toUpperCase(); });
-  
-  // Tenta encontrar a mesorregião usando o nome normalizado
-  let mesorregiao = null; // Inicialmente não atribuímos nenhuma mesorregião
+  // Normaliza o nome do município para busca
+  const nomeNormalizado = normalizeString(nomeMunicipio);
+  let mesorregiao = null;
   
   // Primeiro tenta encontrar uma correspondência exata
   for (const [municipio, regiao] of Object.entries(municipioToMesorregiao)) {
-    // Normaliza o nome do município na lista
     const municipioNormalizado = normalizeString(municipio);
     
-    // Tenta encontrar correspondência exata
-    if (municipioNormalizado === normalizeString(municipio).replace(/\b./g, function(a){ return a.toUpperCase(); })) {
+    // Tenta correspondência exata
+    if (municipioNormalizado === nomeNormalizado) {
       mesorregiao = regiao;
       break;
     }
     
-    // Se não encontrou exata, tenta algumas variações comuns
+    // Tenta correspondência com variações comuns
     const municipioSemHifen = municipio.replace(/‑/g, '');
     const municipioComEspaco = municipio.replace(/‑/g, ' ');
     
-    if (normalizeString(municipioSemHifen).replace(/\b./g, function(a){ return a.toUpperCase(); }) === nomeNormalizado || 
-        normalizeString(municipioComEspaco).replace(/\b./g, function(a){ return a.toUpperCase(); }) === nomeNormalizado) {
+    if (normalizeString(municipioSemHifen) === nomeNormalizado || 
+        normalizeString(municipioComEspaco) === nomeNormalizado) {
       mesorregiao = regiao;
       console.log(`Correspondência encontrada com variação: '${municipio}' para '${nomeMunicipio}'`);
       break;
@@ -812,7 +880,7 @@ function styleMeso(feature) {
   }
   
   // Se não encontrou correspondência, usa cinza claro
-  const color = mesorregiao ? getColorForMesorregiao(mesorregiao) : '#808080'; // Cinza claro como cor padrão
+  const color = mesorregiao ? getColorForMesorregiao(mesorregiao) : '#808080';
 
   console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao || 'Não encontrada', 'Cor:', color);
   
@@ -829,6 +897,52 @@ function styleMeso(feature) {
   };
 }
 
+// Função para encontrar a mesorregião de um município
+function encontrarMesorregiaoDoMunicipio(municipio) {
+  if (!municipio) return null;
+  
+  // Normaliza o nome do município
+  const municipioNormalizado = normalizeString(municipio);
+  
+  // Verifica todas as mesorregiões
+  for (const mesorregiao in dadosMesorregioes) {
+    if (dadosMesorregioes.hasOwnProperty(mesorregiao)) {
+      // Verifica todas as microrregiões da mesorregião
+      const microrregioes = dadosMesorregioes[mesorregiao];
+      for (const microrregiao in microrregioes) {
+        if (microrregioes.hasOwnProperty(microrregiao)) {
+          // Verifica todos os municípios da microrregião
+          const municipios = microrregioes[microrregiao];
+          if (Array.isArray(municipios)) {
+            for (const m of municipios) {
+              // Normaliza o nome do município na lista
+              const mNormalizado = normalizeString(m);
+              
+              // Verifica correspondência exata
+              if (mNormalizado === municipioNormalizado) {
+                return mesorregiao;
+              }
+              
+              // Verifica correspondência com variações comuns
+              const mSemHifen = m.replace(/‑/g, '');
+              const mComEspaco = m.replace(/‑/g, ' ');
+              
+              if (normalizeString(mSemHifen) === municipioNormalizado || 
+                  normalizeString(mComEspaco) === municipioNormalizado) {
+                console.log(`Correspondência encontrada com variação: '${m}' para '${municipio}'`);
+                return mesorregiao;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  console.warn('Mesorregião não encontrada para o município:', municipio);
+  return null;
+}
+
 // Primeiro carrega o GeoJSON dos municípios
 fetch('municipios_ma.json')
   .then(response => response.json())
@@ -837,6 +951,9 @@ fetch('municipios_ma.json')
     
     // Armazena os dados brutos do GeoJSON
     window.geojsonData = geojson;
+    
+    // Processa os dados dos municípios
+    processarDadosMunicipios();
     
     // Cria a camada do Leaflet
     window.geojsonLayer = L.geoJSON(geojson, {

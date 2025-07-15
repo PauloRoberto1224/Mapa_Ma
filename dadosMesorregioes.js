@@ -5,12 +5,12 @@ const dadosMesorregioes = {
     'Microrregião Aglomeração Urbana de São Luís': ['Paço do Lumiar', 'Raposa', 'São José de Ribamar', 'São Luís'],
     'Microrregião Rosário': ['Axixá', 'Bacabeira', 'Cachoeira Grande', 'Icatu', 'Morros', 'Presidente Juscelino', 'Rosário', 'Santa Rita'],
     'Microrregião Lençóis Maranhenses': ['Barreirinhas', 'Humberto de Campos', 'Paulino Neves', 'Primeira Cruz', 'Santo Amaro do Maranhão', 'Tutóia'],
-    'Microrregião Baixada Maranhense': ['Anajatuba', 'Arari', 'Bela Vista do Maranhão', 'Cajari', 'Conceição do Lago Açu', 'Igarapé do Meio', 'Matinha', 'Monção', 'Olinda Nova do Maranhão', 'Palmeirândia', 'Pedro do Rosário', 'Penalva', 'Peri Mirim', 'Pinheiro', 'Presidente Sarney', 'Santa Helena', 'São Bento', 'São João Batista', 'São Vicente Ferrer', 'Viana', 'Vitória do Mearim'],
-    'Microrregião Itapecuru Mirim': ['Cantanhede', 'Itapecuru Mirim', 'Matões do Norte', 'Miranda do Norte', 'Nina Rodrigues', 'Pirapemas', 'Presidente Vargas', 'Vargem Grande']
+    'Microrregião Baixada Maranhense': ['Anajatuba', 'Arari', 'Bela Vista do Maranhão', 'Cajari', 'Conceição do Lago-Açu', 'Igarapé do Meio', 'Matinha', 'Monção', 'Olinda Nova do Maranhão', 'Palmeirândia', 'Pedro do Rosário', 'Penalva', 'Peri Mirim', 'Pinheiro', 'Presidente Sarney', 'Santa Helena', 'São Bento', 'São João Batista', 'São Vicente Ferrer', 'Viana', 'Vitória do Mearim'],
+    'Microrregião Itapecuru Mirim': ['Cantanhede', 'Itapecuru-Mirim', 'Matões do Norte', 'Miranda do Norte', 'Nina Rodrigues', 'Pirapemas', 'Presidente Vargas', 'Vargem Grande']
   },
   'Oeste Maranhense': {
     'Microrregião Gurupi': ['Amapá do Maranhão', 'Boa Vista do Gurupi', 'Cândido Mendes', 'Carutapera', 'Centro do Guilherme', 'Centro Novo do Maranhão', 'Godofredo Viana', 'Governador Nunes Freire', 'Junco do Maranhão', 'Luís Domingues', 'Maracaçumé', 'Maranhãozinho', 'Turiaçu', 'Turilândia', 'Riachão'],
-    'Microrregião Pindaré': ['Altamira do Maranhão', 'Alto Alegre do Pindaré', 'Araguanã', 'Bom Jardim', 'Bom Jesus das Selvas', 'Brejo de Areia', 'Buriticupu', 'Governador Newton Bello', 'Lago da Pedra', 'Lagoa Grande do Maranhão', 'Marajá do Sena', 'Nova Olinda do Maranhão', 'Paulo Ramos', 'Pindaré‑Mirim', 'Presidente Médici', 'Santa Inês', 'Santa Luzia', 'São João do Caru', 'Tufilândia', 'Vitorino Freire', 'Zé Doca'],
+    'Microrregião Pindaré': ['Altamira do Maranhão', 'Alto Alegre do Pindaré', 'Araguanã', 'Bom Jardim', 'Bom Jesus das Selvas', 'Brejo de Areia', 'Buriticupu', 'Governador Newton Bello', 'Lago da Pedra', 'Lagoa Grande do Maranhão', 'Marajá do Sena', 'Nova Olinda do Maranhão', 'Paulo Ramos', 'Pindaré‑Mirim', 'Presidente Médici', 'Santa Inês', 'Santa Luzia', 'Santa Luzia do Paruá', 'São João do Caru', 'Tufilândia', 'Vitorino Freire', 'Zé Doca'],
     'Microrregião Imperatriz': ['Açailândia', 'Amarante do Maranhão', 'Buritirana', 'Cidelândia', 'Davinópolis', 'Governador Edison Lobão', 'Imperatriz', 'Itinga do Maranhão', 'João Lisboa', 'Lajeado Novo', 'Montes Altos', 'Ribamar Fiquene', 'São Francisco do Brejão', 'São Pedro da Água Branca', 'Senador La Rocque', 'Vila Nova dos Martírios']
   },
   'Centro Maranhense': {
