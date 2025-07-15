@@ -68,6 +68,28 @@
       display: flex;
       flex-direction: column;
     }
+
+    .municipios-lista {
+      padding-left: 20px;
+      margin-top: 5px;
+    }
+
+    .municipio {
+      padding: 5px 10px;
+      margin: 2px 0;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background-color 0.2s;
+    }
+
+    .municipio:hover {
+      background-color: #f0f0f0;
+    }
+
+    .municipio.active {
+      background-color: #e3f2fd;
+      font-weight: bold;
+    }
     
     .mesorregiao-item {
       margin-bottom: 10px;
@@ -428,8 +450,26 @@
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="data.js"></script>
+  <script src="dadosMesorregioes.js"></script>
   <script src="mesorregioes.js"></script>
-  <script src="script.js"></script>
+  
+  <!-- Carrega dados dos municípios -->
+  <script>
+    // Carrega dados dos municípios
+    fetch('meso_municipios_ma.json')
+      .then(response => response.json())
+      .then(dados => {
+        window.data = dados;
+        console.log('Dados dos municípios carregados com sucesso');
+        
+        // Carrega o script principal após os dados estarem disponíveis
+        const script = document.createElement('script');
+        script.src = 'script.js';
+        document.body.appendChild(script);
+      })
+      .catch(error => {
+        console.error('Erro ao carregar dados dos municípios:', error);
+      });
+  </script>
 </body>
 </html>

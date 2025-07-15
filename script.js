@@ -1,3 +1,6 @@
+// Carregando dados das mesorregiões
+dadosMesorregioes; // Os dados já estão disponíveis globalmente
+
 // Função para adicionar mensagens de debug na interface
 function addDebugMessage(msg) {
   try {
@@ -55,15 +58,23 @@ info.addTo(map);
 
 // Processamento dos dados dos municípios
 var municipiosData = {};
-function countByMunicipio(){
-  data.forEach(d=>{
-    var m = d.Municipio;
-    if(!municipiosData[m]) municipiosData[m]={CRAS:0,CREAS:0,SSAA:0,total:0};
-    municipiosData[m][d.Tipo]++;
-    municipiosData[m].total++;
-  });
+
+// Função para processar os dados dos municípios
+function processarDadosMunicipios() {
+  if (window.data && Array.isArray(window.data)) {
+    data.forEach(d => {
+      var m = d.Municipio;
+      if (!municipiosData[m]) municipiosData[m] = {CRAS: 0, CREAS: 0, SSAA: 0, total: 0};
+      municipiosData[m][d.Tipo]++;
+      municipiosData[m].total++;
+    });
+    console.log('Dados dos municípios processados com sucesso');
+    addDebugMessage('Dados dos municípios processados');
+  } else {
+    console.warn('Dados não disponíveis para processamento');
+    addDebugMessage('Dados não disponíveis para processamento');
+  }
 }
-countByMunicipio();
 
 // Funções de interação com o mapa
 function highlight(e){
@@ -150,34 +161,41 @@ function highlightMunicipioInLegend(nomeMunicipio) {
   
   console.log('Destacando município na legenda:', nomeMunicipio);
   
-  // Normaliza o nome do município para busca
-  const nomeNormalizado = normalizeString(nomeMunicipio);
+  // Primeiro, tenta encontrar o município usando o ID
   let itemEncontrado = null;
+  const municipioId = municipioToMesorregiao[nomeMunicipio];
   
-  // Primeiro, tenta encontrar uma correspondência exata
+  if (municipioId) {
+    // Tenta encontrar pelo ID
+    itemEncontrado = document.querySelector(`.municipio[data-id="${municipioId}"]`);
+    if (itemEncontrado) {
+      console.log('Encontrado pelo ID:', municipioId);
+      processarItemEncontrado(itemEncontrado);
+      return;
+    }
+  }
+  
+  // Se não encontrou pelo ID, tenta pela correspondência exata do nome
   document.querySelectorAll('.municipio').forEach(el => {
     const itemText = el.textContent.trim();
-    if (normalizeString(itemText) === nomeNormalizado) {
+    if (itemText === nomeMunicipio) {
       itemEncontrado = el;
+      return;
     }
   });
   
-  // Se não encontrou, tenta uma correspondência parcial
+  // Se ainda não encontrou, tenta normalizar o nome
   if (!itemEncontrado) {
-    console.warn('Tentando correspondência parcial para:', nomeMunicipio);
-    
-    for (const el of document.querySelectorAll('.municipio')) {
+    const nomeNormalizado = normalizeString(nomeMunicipio);
+    document.querySelectorAll('.municipio').forEach(el => {
       const itemText = el.textContent.trim();
       const itemNormalizado = normalizeString(itemText);
       
-      // Verifica se há uma correspondência parcial
-      if (itemNormalizado.includes(nomeNormalizado) || 
-          nomeNormalizado.includes(itemNormalizado)) {
-        console.log(`Correspondência parcial encontrada: '${itemText}' para '${nomeMunicipio}'`);
+      if (itemNormalizado === nomeNormalizado) {
         itemEncontrado = el;
-        break;
+        return;
       }
-    }
+    });
   }
   
   // Se não encontrou de jeito nenhum, loga erro e sai
@@ -186,6 +204,11 @@ function highlightMunicipioInLegend(nomeMunicipio) {
     return;
   }
   
+  processarItemEncontrado(itemEncontrado);
+}
+
+// Função auxiliar para processar o item encontrado
+function processarItemEncontrado(itemEncontrado) {
   // Remove a classe 'active' de todos os itens
   document.querySelectorAll('.municipio').forEach(el => {
     el.classList.remove('active');
@@ -302,7 +325,7 @@ function getColorForMesorregiao(mesorregiao) {
     'Oeste Maranhense': '#33a02c',
     'Centro Maranhense': '#ff7f00',
     'Leste Maranhense': '#6a3d9a',
-    'Sul Maranhense': '#e31a1c'  // Vermelho para o Sul Maranhense
+    'Sul Maranhense': '#e31a1c'  
   };
   return colors[mesorregiao] || '#999999';
 }
@@ -348,6 +371,7 @@ function createLegend() {
               .replace(/"/g, '&quot;')
               .replace(/'/g, '&#039;');
             
+            // Adiciona a mesorregião
             html += `
               <div class="mesorregiao-item" 
                    style="border-left: 4px solid ${getColorForMesorregiao(mesorregiao)}"
@@ -358,7 +382,35 @@ function createLegend() {
                 <span class="mesorregiao-nome">${safeMesorregiao}</span>
                 <span class="mesorregiao-contagem">${totalMunicipios} municípios</span>
               </div>
+              <div class="municipios-lista">
             `;
+            
+            // Adiciona os municípios da mesorregião
+            Object.entries(dadosMesorregioes[mesorregiao]).forEach(([microrregiao, municipios]) => {
+              municipios.forEach(municipio => {
+                // Obtém o ID do município do objeto municipioToMesorregiao
+                const municipioId = municipioToMesorregiao[municipio];
+                const safeMunicipio = municipio
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
+                
+                html += `
+                  <div class="municipio"
+                       data-id="${municipioId}"
+                       onclick="highlightMunicipio('${safeMunicipio}')"
+                       role="button"
+                       tabindex="0"
+                       onkeydown="if(event.key === 'Enter') highlightMunicipio('${safeMunicipio}')">
+                    ${safeMunicipio}
+                  </div>
+                `;
+              });
+            });
+            
+            html += '</div>'; // Fecha .municipios-lista
           } catch (error) {
             console.error(`Erro ao processar a mesorregião ${mesorregiao}:`, error);
             addDebugMessage(`Erro ao processar a mesorregião ${mesorregiao}: ${error.message}`);
@@ -707,48 +759,62 @@ fetch('meso_colors.json')
 // Função para normalizar strings (remove acentos, hífens, converte para minúsculas e remove espaços extras)
 function normalizeString(str) {
   if (!str) return '';
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-    .replace(/-/g, ' ') // Substitui hífens por espaços
-    .replace(/\s+/g, ' ') // Remove múltiplos espaços
-    .trim() // Remove espaços no início e fim
-    .toLowerCase();
+  
+  // Remove acentos
+  str = str.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  
+  // Converte para minúsculas
+  str = str.toLowerCase();
+  
+  // Substitui diferentes tipos de hífen por um hífen comum
+  str = str.replace(/[‑‒–—―]/g, '-'); // Substitui hífens Unicode por hífen comum
+  
+  // Substitui espaços por hífen para correspondência exata
+  str = str.replace(/\s+/g, '-');
+  
+  // Remove espaços extras (agora que já substituímos por hífen)
+  str = str.trim();
+  
+  return str;
 }
 
 // Aplicar estilos no mapa de municípios
 function styleMeso(feature) {
   const nomeMunicipio = feature.properties.name || 'Desconhecido';
   
-  // Normaliza o nome do município para busca
-  const nomeNormalizado = normalizeString(nomeMunicipio);
+  // Normaliza o nome do município para busca - mantém a primeira letra maiúscula
+  const nomeNormalizado = normalizeString(nomeMunicipio).replace(/\b./g, function(a){ return a.toUpperCase(); });
   
   // Tenta encontrar a mesorregião usando o nome normalizado
-  let mesorregiao = 'Sul Maranhense'; // Valor padrão
+  let mesorregiao = null; // Inicialmente não atribuímos nenhuma mesorregião
   
   // Primeiro tenta encontrar uma correspondência exata
   for (const [municipio, regiao] of Object.entries(municipioToMesorregiao)) {
-    if (normalizeString(municipio) === nomeNormalizado) {
+    // Normaliza o nome do município na lista
+    const municipioNormalizado = normalizeString(municipio);
+    
+    // Tenta encontrar correspondência exata
+    if (municipioNormalizado === normalizeString(municipio).replace(/\b./g, function(a){ return a.toUpperCase(); })) {
       mesorregiao = regiao;
+      break;
+    }
+    
+    // Se não encontrou exata, tenta algumas variações comuns
+    const municipioSemHifen = municipio.replace(/‑/g, '');
+    const municipioComEspaco = municipio.replace(/‑/g, ' ');
+    
+    if (normalizeString(municipioSemHifen).replace(/\b./g, function(a){ return a.toUpperCase(); }) === nomeNormalizado || 
+        normalizeString(municipioComEspaco).replace(/\b./g, function(a){ return a.toUpperCase(); }) === nomeNormalizado) {
+      mesorregiao = regiao;
+      console.log(`Correspondência encontrada com variação: '${municipio}' para '${nomeMunicipio}'`);
       break;
     }
   }
   
-  // Se não encontrou, tenta uma correspondência parcial
-  if (mesorregiao === 'Sul Maranhense') {
-    for (const [municipio, regiao] of Object.entries(municipioToMesorregiao)) {
-      const municipioNormalizado = normalizeString(municipio);
-      if (municipioNormalizado.includes(nomeNormalizado) || nomeNormalizado.includes(municipioNormalizado)) {
-        mesorregiao = regiao;
-        console.log(`Correspondência parcial encontrada: '${municipio}' para '${nomeMunicipio}'`);
-        break;
-      }
-    }
-  }
-  
-  const color = getColorForMesorregiao(mesorregiao);
-  
-  console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao, 'Cor:', color);
+  // Se não encontrou correspondência, usa cinza claro
+  const color = mesorregiao ? getColorForMesorregiao(mesorregiao) : '#808080'; // Cinza claro como cor padrão
+
+  console.log('Estilizando:', nomeMunicipio, 'Mesorregião:', mesorregiao || 'Não encontrada', 'Cor:', color);
   
   // Armazena a mesorregião nas propriedades do feature para uso posterior
   feature.properties.mesorregiao = mesorregiao;
